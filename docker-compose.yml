@@ -1,0 +1,40 @@
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: kafka
+    hostname: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1 # identificatore numerico del nodo nel cluster KRaft
+      KAFKA_PROCESS_ROLES: "broker,controller" # ruoli del nodo
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:29093"
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093" # PLAINTEXT per i client (producer/consumer), CONTROLLER per la comunicazione interna del cluster
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092" # indirizzo che i client useranno per connettersi
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER" # specifica quale listener è usato per il ruolo di controller
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT" # specifica quale listener è usato per la comunicazione tra broker
+      # parametri per il controllo dei topic interni di Kafka
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1 # minimo numero di repliche in sync
+      CLUSTER_ID: "abcdefghijklmnopqrstuv" # identificatore univoco del cluster KRaft
+    restart: unless-stopped # il broker si riavvia automaticamente se si arresta in modo anomalo
+
+  producer:
+    build: ./producer # costruisce l'immagine Docker per il producer partendo dal Dockerfile nella cartella ./producer
+    depends_on:
+      - kafka # assicura che il servizio Kafka sia avviato prima del producer
+    environment:
+      BOOTSTRAP_SERVERS: "kafka:9092" # indirizzo del broker Kafka
+    volumes:
+      - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
+
+  consumer:
+    build: ./consumer # costruisce l'immagine Docker per il consumer partendo dal Dockerfile nella cartella ./consumer
+    depends_on:
+      - kafka # assicura che il servizio Kafka sia avviato prima del consumer
+    environment:
+      BOOTSTRAP_SERVERS: "kafka:9092" # indirizzo del broker Kafka
+    volumes:
+      - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
