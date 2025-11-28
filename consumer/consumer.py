@@ -10,7 +10,7 @@ consumer_conf = {
     "auto.offset.reset": "earliest", # inizia a leggere dal primo offset se non ci sono offset salvati per questo gruppo
 }
 out_file = "/app/data/consumer_metrics.csv"
-topic = "test-topic" # Kafka topic da cui il consumer legge i messaggi
+topic = os.getenv("TOPIC_NAME", "test-topic-3") # Kafka topic da cui il consumer legge i messaggi
 
 c = Consumer(consumer_conf)
 c.subscribe([topic]) # iscrive il consumer al topic

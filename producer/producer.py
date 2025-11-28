@@ -4,7 +4,7 @@ import json
 from confluent_kafka import Producer
 
 bootstrap = os.getenv("BOOTSTRAP_SERVERS", "localhost:9092") # Kafka bootstrap servers
-topic = "test-topic" # Kafka topic dove il producer invia i messaggi
+topic = os.getenv("TOPIC_NAME", "test-topic-3") # Kafka topic dove il producer invia i messaggi
 out_file = "/app/data/producer_metrics.csv"
 
 producer_conf = {
