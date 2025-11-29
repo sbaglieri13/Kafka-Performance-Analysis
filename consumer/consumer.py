@@ -1,22 +1,25 @@
 import time
 import json
-from confluent_kafka import Consumer
+from pathlib import Path
 import os
+from confluent_kafka import Consumer
 
-bootstrap = os.getenv("BOOTSTRAP_SERVERS", "localhost:9092")  # Kafka bootstrap servers
+bootstrap = os.getenv("BOOTSTRAP_SERVERS")  # Kafka bootstrap servers
+topic = os.getenv("TOPIC_NAME") # Kafka topic da cui il consumer legge i messaggi
+run_id = os.getenv("RUN_ID")
+group_id = os.getenv("GROUP_ID")
 consumer_conf = {
     "bootstrap.servers": bootstrap, # Kafka bootstrap servers
-    "group.id": "latency-test-group", # ID del gruppo consumer
+    "group.id": group_id, # ID del gruppo consumer
     "auto.offset.reset": "earliest", # inizia a leggere dal primo offset se non ci sono offset salvati per questo gruppo
 }
-out_file = "/app/data/consumer_metrics.csv"
-topic = os.getenv("TOPIC_NAME", "test-topic-3") # Kafka topic da cui il consumer legge i messaggi
+out_file = Path("/app/data") / f"consumer_metrics_{run_id}.jsonl"
 
 c = Consumer(consumer_conf)
 c.subscribe([topic]) # iscrive il consumer al topic
 
 def main():
-    with open(out_file, "a", encoding="utf-8") as f:
+    with out_file.open("a", encoding="utf-8") as f:
         while True:
             msg = c.poll(1.0) # attende fino a 1 secondo per un messaggio
             # se entro 1 secondo non arriva nessun messaggio, msg sarà None, altrimenti sarà un oggetto Message
@@ -31,11 +34,12 @@ def main():
 
             # crea un record con le informazioni del messaggio e il timestamp di ricezione
             record = {
-                "key": key,
-                "receive_ts_ns": receive_ts,
+                "run_id": run_id,
                 "topic": msg.topic(),
                 "partition": msg.partition(),
                 "offset": msg.offset(),
+                "key": key,
+                "receive_ts_ns": receive_ts,
                 "value": value,
             }
             f.write(json.dumps(record) + "\n")

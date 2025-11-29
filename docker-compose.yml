@@ -79,7 +79,7 @@ services:
       - kafka3
 
 
-  producer:
+  producer-1:
     build: ./producer # costruisce l'immagine Docker per il producer partendo dal Dockerfile nella cartella ./producer
     depends_on:
       - kafka1 # assicura che il servizio Kafka sia avviato prima del producer
@@ -88,10 +88,28 @@ services:
     environment:
       BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
       TOPIC_NAME: "test-topic-3"   # va cambiato ad ogni test
+      PARTITION_COUNT: "3" # numero di partizioni del topic
+      RUN_ID: "p3_s200_prod_1" # identificatore univoco per l'esecuzione del test
+      PAYLOAD_SIZE_BYTES: "200" # dimensione del payload in byte
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
 
-  consumer:
+  producer-2:
+    build: ./producer # costruisce l'immagine Docker per il producer partendo dal Dockerfile nella cartella ./producer
+    depends_on:
+      - kafka1 # assicura che il servizio Kafka sia avviato prima del producer
+      - kafka2
+      - kafka3
+    environment:
+      BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
+      TOPIC_NAME: "test-topic-3"   # va cambiato ad ogni test
+      PARTITION_COUNT: "3" # numero di partizioni del topic
+      RUN_ID: "p3_s200_prod_2" # identificatore univoco per l'esecuzione del test
+      PAYLOAD_SIZE_BYTES: "200" # dimensione del payload in byte
+    volumes:
+      - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
+
+  consumer-g1-c1:
     build: ./consumer # costruisce l'immagine Docker per il consumer partendo dal Dockerfile nella cartella ./consumer
     depends_on:
       - kafka1 # assicura che il servizio Kafka sia avviato prima del consumer
@@ -100,5 +118,38 @@ services:
     environment:
       BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
       TOPIC_NAME: "test-topic-3"   # va cambiato ad ogni test
+      PARTITION_COUNT: "3" # numero di partizioni del topic
+      RUN_ID: "p3_s200_g1_c1" # identificatore univoco per l'esecuzione del test
+      GROUP_ID: "group_1" # identificatore del gruppo di consumer
+    volumes:
+      - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
+
+  consumer-g1-c2:
+    build: ./consumer # costruisce l'immagine Docker per il consumer partendo dal Dockerfile nella cartella ./consumer
+    depends_on:
+      - kafka1 # assicura che il servizio Kafka sia avviato prima del consumer
+      - kafka2
+      - kafka3
+    environment:
+      BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
+      TOPIC_NAME: "test-topic-3"   # va cambiato ad ogni test
+      PARTITION_COUNT: "3" # numero di partizioni del topic
+      RUN_ID: "p3_s200_g1_c2" # identificatore univoco per l'esecuzione del test
+      GROUP_ID: "group_1" # identificatore del gruppo di consumer
+    volumes:
+      - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
+
+  consumer-g2-c1:
+    build: ./consumer # costruisce l'immagine Docker per il consumer partendo dal Dockerfile nella cartella ./consumer
+    depends_on:
+      - kafka1 # assicura che il servizio Kafka sia avviato prima del consumer
+      - kafka2
+      - kafka3
+    environment:
+      BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
+      TOPIC_NAME: "test-topic-3"   # va cambiato ad ogni test
+      PARTITION_COUNT: "3" # numero di partizioni del topic
+      RUN_ID: "p3_s200_g2_c1" # identificatore univoco per l'esecuzione del test
+      GROUP_ID: "group_2" # identificatore del gruppo di consumer
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente

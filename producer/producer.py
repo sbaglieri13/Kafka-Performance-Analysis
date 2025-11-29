@@ -1,11 +1,15 @@
 import os
 import time
 import json
+from pathlib import Path
 from confluent_kafka import Producer
 
-bootstrap = os.getenv("BOOTSTRAP_SERVERS", "localhost:9092") # Kafka bootstrap servers
-topic = os.getenv("TOPIC_NAME", "test-topic-3") # Kafka topic dove il producer invia i messaggi
-out_file = "/app/data/producer_metrics.csv"
+bootstrap = os.getenv("BOOTSTRAP_SERVERS") # Kafka bootstrap servers
+topic = os.getenv("TOPIC_NAME") # Kafka topic dove il producer invia i messaggi
+run_id = os.getenv("RUN_ID")
+payload_size_bytes = int(os.getenv("PAYLOAD_SIZE_BYTES"))  # dimensione del payload di ogni messaggio in byte
+partition_count = int(os.getenv("PARTITION_COUNT")) # numero di partizioni del topic
+out_file = Path("/app/data") / f"producer_metrics_{run_id}.jsonl"
 
 producer_conf = {
     "bootstrap.servers": bootstrap, # Kafka bootstrap servers
@@ -17,24 +21,36 @@ producer_conf = {
 p = Producer(producer_conf)
 send_ts = {}
 
+def make_payload(msg_id: int) -> dict:
+    """
+    Costruisce un payload di dimensione controllata ~ payload_size_bytes
+    """
+    base = f"msg-{msg_id}-"
+    # riempi con 'x' fino a raggiungere (approssimativamente) la dimensione richiesta
+    padding_len = max(payload_size_bytes - len(base), 0)
+    data_str = base + ("x" * padding_len)
+    return {"id": msg_id, "data": data_str}
+
 # Callback function chiamata quando un messaggio è stato consegnato (o si è verificato un errore)
 def delivery_report(err, msg):
-    import time, json
     msg_key = msg.key().decode("utf-8")
     sent_at = send_ts.pop(msg_key, None) # timestamp di invio del messaggio
     written_at = time.time_ns() # timestamp di scrittura del messaggio sul broker
     status = "OK" if err is None else f"ERROR:{err}"
 
     record = {
+        "run_id": run_id,
+        "topic": msg.topic(),
+        "partition": msg.partition(),
+        "offset": msg.offset(),
         "key": msg_key,
         "produce_call_ts_ns": sent_at,
         "written_ts_ns": written_at,
         "status": status,
-        "topic": msg.topic(),
-        "partition": msg.partition(),
-        "offset": msg.offset(),
+        "payload_size_bytes": payload_size_bytes,
+        "partition_count": partition_count,
     }
-    with open(out_file, "a", encoding="utf-8") as f:
+    with out_file.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")
 
 # Funzione per inviare un messaggio al topic Kafka
@@ -51,9 +67,9 @@ def message_generator():
     msg_id = 0
     while True:
         msg_id += 1
-        payload = {"id": msg_id, "payload": f"msg-{msg_id}"}
+        payload = make_payload(msg_id)
         send_message(msg_id, payload)
-        time.sleep(1)
+        time.sleep(0.001)
 
 def main():
     message_generator()
