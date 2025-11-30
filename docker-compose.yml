@@ -79,7 +79,7 @@ services:
       - kafka3
 
 
-  producer-1:
+  producer1:
     build: ./producer # costruisce l'immagine Docker per il producer partendo dal Dockerfile nella cartella ./producer
     depends_on:
       - kafka1 # assicura che il servizio Kafka sia avviato prima del producer
@@ -87,14 +87,18 @@ services:
       - kafka3
     environment:
       BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
-      TOPIC_NAME: "test-topic-3"   # va cambiato ad ogni test
-      PARTITION_COUNT: "3" # numero di partizioni del topic
-      RUN_ID: "p3_s200_prod_1" # identificatore univoco per l'esecuzione del test
-      PAYLOAD_SIZE_BYTES: "200" # dimensione del payload in byte
+      TOPIC_NAME: "${TOPIC_NAME:-test-topic-3}"   # va cambiato ad ogni test
+      PARTITION_COUNT: "${PARTITION_COUNT:-3}" # numero di partizioni del topic
+      RUN_ID: "${RUN_ID:-p3_s200}" # identificatore univoco per l'esecuzione del test
+      PAYLOAD_SIZE_BYTES: "${PAYLOAD_SIZE_BYTES:-200}" # dimensione del payload in byte
+      MESSAGES_PER_BATCH: "${MESSAGES_PER_BATCH:-1}" # numero di messaggi per batch
+      LINGER_MS: "${LINGER_MS:-0}" # tempo di attesa prima di inviare un batch
+      BATCH_SIZE_BYTES: "${BATCH_SIZE_BYTES:-32768}"  # dimensione del batch in byte
+      CLIENT_ROLE: prod1 # ruolo del client per distinguere i producer
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
 
-  producer-2:
+  producer2:
     build: ./producer # costruisce l'immagine Docker per il producer partendo dal Dockerfile nella cartella ./producer
     depends_on:
       - kafka1 # assicura che il servizio Kafka sia avviato prima del producer
@@ -102,10 +106,14 @@ services:
       - kafka3
     environment:
       BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
-      TOPIC_NAME: "test-topic-3"   # va cambiato ad ogni test
-      PARTITION_COUNT: "3" # numero di partizioni del topic
-      RUN_ID: "p3_s200_prod_2" # identificatore univoco per l'esecuzione del test
-      PAYLOAD_SIZE_BYTES: "200" # dimensione del payload in byte
+      TOPIC_NAME: "${TOPIC_NAME:-test-topic-3}"   # va cambiato ad ogni test
+      PARTITION_COUNT: "${PARTITION_COUNT:-3}" # numero di partizioni del topic
+      RUN_ID: "${RUN_ID:-p3_s200}" # identificatore univoco per l'esecuzione del test
+      PAYLOAD_SIZE_BYTES: "${PAYLOAD_SIZE_BYTES:-200}" # dimensione del payload in byte
+      MESSAGES_PER_BATCH: "${MESSAGES_PER_BATCH:-1}" # numero di messaggi per batch
+      LINGER_MS: "${LINGER_MS:-0}" # tempo di attesa prima di inviare un batch
+      BATCH_SIZE_BYTES: "${BATCH_SIZE_BYTES:-32768}" # dimensione del batch in byte
+      CLIENT_ROLE: prod2 # ruolo del client per distinguere i producer
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
 
@@ -117,10 +125,11 @@ services:
       - kafka3
     environment:
       BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
-      TOPIC_NAME: "test-topic-3"   # va cambiato ad ogni test
-      PARTITION_COUNT: "3" # numero di partizioni del topic
-      RUN_ID: "p3_s200_g1_c1" # identificatore univoco per l'esecuzione del test
+      TOPIC_NAME: "${TOPIC_NAME:-test-topic-3}"   # va cambiato ad ogni test
+      PARTITION_COUNT: "${PARTITION_COUNT:-3}" # numero di partizioni del topic
+      RUN_ID: "${RUN_ID:-p3_s200}" # identificatore univoco per l'esecuzione del test
       GROUP_ID: "group_1" # identificatore del gruppo di consumer
+      CLIENT_ROLE: g1_c1 # ruolo del client per distinguere i consumer
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
 
@@ -132,10 +141,11 @@ services:
       - kafka3
     environment:
       BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
-      TOPIC_NAME: "test-topic-3"   # va cambiato ad ogni test
-      PARTITION_COUNT: "3" # numero di partizioni del topic
-      RUN_ID: "p3_s200_g1_c2" # identificatore univoco per l'esecuzione del test
+      TOPIC_NAME: "${TOPIC_NAME:-test-topic-3}"   # va cambiato ad ogni test
+      PARTITION_COUNT: "${PARTITION_COUNT:-3}" # numero di partizioni del topic
+      RUN_ID: "${RUN_ID:-p3_s200}" # identificatore univoco per l'esecuzione del test
       GROUP_ID: "group_1" # identificatore del gruppo di consumer
+      CLIENT_ROLE: g1_c2 # ruolo del client per distinguere i consumer
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
 
@@ -147,9 +157,10 @@ services:
       - kafka3
     environment:
       BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
-      TOPIC_NAME: "test-topic-3"   # va cambiato ad ogni test
-      PARTITION_COUNT: "3" # numero di partizioni del topic
-      RUN_ID: "p3_s200_g2_c1" # identificatore univoco per l'esecuzione del test
+      TOPIC_NAME: "${TOPIC_NAME:-test-topic-3}"   # va cambiato ad ogni test
+      PARTITION_COUNT: "${PARTITION_COUNT:-3}" # numero di partizioni del topic
+      RUN_ID: "${RUN_ID:-p3_s200}" # identificatore univoco per l'esecuzione del test
       GROUP_ID: "group_2" # identificatore del gruppo di consumer
+      CLIENT_ROLE: g2_c1 # ruolo del client per distinguere i consumer
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente

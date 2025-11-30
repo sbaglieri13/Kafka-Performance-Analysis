@@ -8,12 +8,14 @@ bootstrap = os.getenv("BOOTSTRAP_SERVERS")  # Kafka bootstrap servers
 topic = os.getenv("TOPIC_NAME") # Kafka topic da cui il consumer legge i messaggi
 run_id = os.getenv("RUN_ID")
 group_id = os.getenv("GROUP_ID")
+role = os.getenv("CLIENT_ROLE")
+out_file = Path("/app/data") / f"consumer_metrics_{role}_{run_id}.jsonl"
+
 consumer_conf = {
     "bootstrap.servers": bootstrap, # Kafka bootstrap servers
     "group.id": group_id, # ID del gruppo consumer
     "auto.offset.reset": "earliest", # inizia a leggere dal primo offset se non ci sono offset salvati per questo gruppo
 }
-out_file = Path("/app/data") / f"consumer_metrics_{run_id}.jsonl"
 
 c = Consumer(consumer_conf)
 c.subscribe([topic]) # iscrive il consumer al topic
