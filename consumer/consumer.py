@@ -1,54 +1,93 @@
-import time
 import json
-from pathlib import Path
 import os
+import time
+import socket
+from pathlib import Path
+
 from confluent_kafka import Consumer
 
-bootstrap = os.getenv("BOOTSTRAP_SERVERS")  # Kafka bootstrap servers
-topic = os.getenv("TOPIC_NAME") # Kafka topic da cui il consumer legge i messaggi
+bootstrap = os.getenv("BOOTSTRAP_SERVERS")      # Kafka bootstrap servers
+topic = os.getenv("TOPIC_NAME")                 # Topic da cui leggere
 run_id = os.getenv("RUN_ID")
 group_id = os.getenv("GROUP_ID")
-role = os.getenv("CLIENT_ROLE")
-out_file = Path("/app/data") / f"consumer_metrics_{role}_{run_id}.jsonl"
+
+container_name = os.getenv("CONTAINER_NAME", socket.gethostname())
+
+data_dir = Path("/app/data")
+data_dir.mkdir(parents=True, exist_ok=True)
+
+# <CONTAINER_NAME>_<RUN_ID>_messages.jsonl
+out_file = data_dir / f"{container_name}_{run_id}_messages.jsonl"
 
 consumer_conf = {
-    "bootstrap.servers": bootstrap, # Kafka bootstrap servers
-    "group.id": group_id, # ID del gruppo consumer
-    "auto.offset.reset": "earliest", # inizia a leggere dal primo offset se non ci sono offset salvati per questo gruppo
+    "bootstrap.servers": bootstrap,
+    "group.id": group_id,
+    "auto.offset.reset": "earliest",
 }
 
 c = Consumer(consumer_conf)
-c.subscribe([topic]) # iscrive il consumer al topic
+c.subscribe([topic])
+
+
+def process_message(msg):
+    """
+    Estrae i dati richiesti dal messaggio Kafka e scrive una riga JSONL.
+    Campi richiesti:
+    - key
+    - run_id
+    - topic 
+    - partition 
+    - offset
+    - message (dal payload)
+    - receive_timestamp_ns (momento di lettura)
+    - latency (differenza tra receive_timestamp_ns e send_timestamp_ns dal payload)
+    """
+    receive_ts_ns = time.time_ns()
+
+    key = msg.key().decode("utf-8") if msg.key() else None
+    raw_value = msg.value().decode("utf-8") if msg.value() else None
+
+    try:
+        payload = json.loads(raw_value) if raw_value is not None else {}
+    except json.JSONDecodeError:
+        payload = {}
+
+    message_text = payload.get("message")
+    send_timestamp_ns = payload.get("send_timestamp_ns")
+
+    delta_receive_minus_send = (
+        receive_ts_ns - send_timestamp_ns
+        if isinstance(send_timestamp_ns, int)
+        else None
+    )
+
+    record = {
+        "key": key,
+        "run_id": run_id,
+        "topic": msg.topic(),
+        "partition": msg.partition(),
+        "offset": msg.offset(),
+        "message": message_text,
+        "receive_timestamp_ns": receive_ts_ns,
+        "latency": delta_receive_minus_send,
+    }
+
+    with out_file.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(record) + "\n")
+
 
 def main():
-    with out_file.open("a", encoding="utf-8") as f:
+    try:
         while True:
-            msg = c.poll(1.0) # attende fino a 1 secondo per un messaggio
-            # se entro 1 secondo non arriva nessun messaggio, msg sarà None, altrimenti sarà un oggetto Message
+            msg = c.poll(1.0)
             if msg is None:
                 continue
             if msg.error():
                 continue
-
-            receive_ts = time.time_ns() # timestamp di ricezione del messaggio
-            key = msg.key().decode("utf-8") if msg.key() else None # decodifica la chiave del messaggio
-            value = msg.value().decode("utf-8") if msg.value() else None # decodifica il valore del messaggio
-
-            # crea un record con le informazioni del messaggio e il timestamp di ricezione
-            record = {
-                "run_id": run_id,
-                "topic": msg.topic(),
-                "partition": msg.partition(),
-                "offset": msg.offset(),
-                "key": key,
-                "receive_ts_ns": receive_ts,
-                "value": value,
-            }
-            f.write(json.dumps(record) + "\n")
+            process_message(msg)
+    finally:
+        c.close()
 
 
 if __name__ == "__main__":
-    try:
-        main()
-    finally:
-        c.close()
+    main()

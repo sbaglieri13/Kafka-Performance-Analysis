@@ -1,17 +1,17 @@
 services:
-  kafka1:
+  broker_1:
     image: confluentinc/cp-kafka:7.6.1
-    container_name: kafka1
-    hostname: kafka1
+    container_name: broker_1
+    hostname: broker_1
     ports:
       - "9092:9092"
     environment:
       KAFKA_NODE_ID: 1 # identificatore numerico del nodo nel cluster KRaft
       KAFKA_PROCESS_ROLES: "broker,controller" # ruoli del nodo
-      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:29093,2@kafka2:29093,3@kafka3:29093"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@broker_1:29093,2@broker_2:29093,3@broker_3:29093"
       KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093" # PLAINTEXT per i client (producer/consumer), CONTROLLER per la comunicazione interna del cluster
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT"
-      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka1:29092,PLAINTEXT_HOST://localhost:9092" # indirizzo che i client useranno per connettersi
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://broker_1:29092,PLAINTEXT_HOST://localhost:9092" # indirizzo che i client useranno per connettersi
       KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER" # specifica quale listener è usato per il ruolo di controller
       KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT" # specifica quale listener è usato per la comunicazione tra broker
       # parametri per il controllo dei topic interni di Kafka
@@ -21,19 +21,19 @@ services:
       CLUSTER_ID: "abcdefghijklmnopqrstuv" # identificatore univoco del cluster KRaft
     restart: unless-stopped # il broker si riavvia automaticamente se si arresta in modo anomalo
   
-  kafka2:
+  broker_2:
     image: confluentinc/cp-kafka:7.6.1
-    container_name: kafka2
-    hostname: kafka2
+    container_name: broker_2
+    hostname: broker_2
     ports:
       - "9093:9093"
     environment:
       KAFKA_NODE_ID: 2 # identificatore numerico del nodo nel cluster KRaft
       KAFKA_PROCESS_ROLES: "broker,controller" # ruoli del nodo
-      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:29093,2@kafka2:29093,3@kafka3:29093"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@broker_1:29093,2@broker_2:29093,3@broker_3:29093"
       KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9093,CONTROLLER://0.0.0.0:29093" # PLAINTEXT per i client (producer/consumer), CONTROLLER per la comunicazione interna del cluster
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT"
-      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka2:29092,PLAINTEXT_HOST://localhost:9093" # indirizzo che i client useranno per connettersi
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://broker_2:29092,PLAINTEXT_HOST://localhost:9093" # indirizzo che i client useranno per connettersi
       KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER" # specifica quale listener è usato per il ruolo di controller
       KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT" # specifica quale listener è usato per la comunicazione tra broker
       # parametri per il controllo dei topic interni di Kafka
@@ -43,19 +43,19 @@ services:
       CLUSTER_ID: "abcdefghijklmnopqrstuv" # identificatore univoco del cluster KRaft
     restart: unless-stopped # il broker si riavvia automaticamente se si arresta in modo anomalo
 
-  kafka3:
+  broker_3:
     image: confluentinc/cp-kafka:7.6.1
-    container_name: kafka3
-    hostname: kafka3
+    container_name: broker_3
+    hostname: broker_3
     ports:
       - "9094:9094"
     environment:
       KAFKA_NODE_ID: 3 # identificatore numerico del nodo nel cluster KRaft
       KAFKA_PROCESS_ROLES: "broker,controller" # ruoli del nodo
-      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka1:29093,2@kafka2:29093,3@kafka3:29093"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@broker_1:29093,2@broker_2:29093,3@broker_3:29093"
       KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9094,CONTROLLER://0.0.0.0:29093" # PLAINTEXT per i client (producer/consumer), CONTROLLER per la comunicazione interna del cluster
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT,CONTROLLER:PLAINTEXT"
-      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka3:29092,PLAINTEXT_HOST://localhost:9094" # indirizzo che i client useranno per connettersi
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://broker_3:29092,PLAINTEXT_HOST://localhost:9094" # indirizzo che i client useranno per connettersi
       KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER" # specifica quale listener è usato per il ruolo di controller
       KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT" # specifica quale listener è usato per la comunicazione tra broker
       # parametri per il controllo dei topic interni di Kafka
@@ -65,102 +65,103 @@ services:
       CLUSTER_ID: "abcdefghijklmnopqrstuv" # identificatore univoco del cluster KRaft
     restart: unless-stopped # il broker si riavvia automaticamente se si arresta in modo anomalo
 
-  kafka-ui:
+  kafka_ui:
     image: provectuslabs/kafka-ui:latest # immagine Docker di Kafka UI
-    container_name: kafka-ui
+    container_name: kafka_ui
     ports:
       - "8080:8080" # mappa la porta 8080 del container alla porta 8080 della macchina host
     environment:
       KAFKA_CLUSTERS_0_NAME: "local-3broker" # nome del cluster Kafka visualizzato in Kafka UI
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzi dei broker Kafka nel cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "broker_1:29092,broker_2:29092,broker_3:29092" # indirizzi dei broker Kafka nel cluster
     depends_on:
-      - kafka1
-      - kafka2
-      - kafka3
+      - broker_1
+      - broker_2
+      - broker_3
 
 
-  producer1:
+  producer_1:
     build: ./producer # costruisce l'immagine Docker per il producer partendo dal Dockerfile nella cartella ./producer
+    container_name: producer_1
     depends_on:
-      - kafka1 # assicura che il servizio Kafka sia avviato prima del producer
-      - kafka2
-      - kafka3
+      - broker_1 # assicura che il servizio Kafka sia avviato prima del producer
+      - broker_2
+      - broker_3
     environment:
-      BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
-      TOPIC_NAME: "${TOPIC_NAME:-test-topic-3}"   # va cambiato ad ogni test
-      PARTITION_COUNT: "${PARTITION_COUNT:-3}" # numero di partizioni del topic
-      RUN_ID: "${RUN_ID:-p3_s200}" # identificatore univoco per l'esecuzione del test
-      PAYLOAD_SIZE_BYTES: "${PAYLOAD_SIZE_BYTES:-200}" # dimensione del payload in byte
-      MESSAGES_PER_BATCH: "${MESSAGES_PER_BATCH:-1}" # numero di messaggi per batch
-      LINGER_MS: "${LINGER_MS:-0}" # tempo di attesa prima di inviare un batch
-      BATCH_SIZE_BYTES: "${BATCH_SIZE_BYTES:-32768}"  # dimensione del batch in byte
-      CLIENT_ROLE: prod1 # ruolo del client per distinguere i producer
+      BOOTSTRAP_SERVERS: "broker_1:29092,broker_2:29092,broker_3:29092" # indirizzo del broker Kafka
+      TOPIC_NAME: "test_partitions_3"   # va cambiato ad ogni test
+      PARTITION_COUNT: "3" # numero di partizioni del topic
+      RUN_ID: "p3_s200" # identificatore univoco per l'esecuzione del test
+      PAYLOAD_SIZE_BYTES: "200" # dimensione del payload in byte
+      NB_MESSAGES_PER_BATCH: "10" # numero di messaggi per batch
+      CONTAINER_NAME: "producer_1"
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
 
-  producer2:
+  producer_2:
     build: ./producer # costruisce l'immagine Docker per il producer partendo dal Dockerfile nella cartella ./producer
+    container_name: producer_2
     depends_on:
-      - kafka1 # assicura che il servizio Kafka sia avviato prima del producer
-      - kafka2
-      - kafka3
+      - broker_1 # assicura che il servizio Kafka sia avviato prima del producer
+      - broker_2
+      - broker_3
     environment:
-      BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
-      TOPIC_NAME: "${TOPIC_NAME:-test-topic-3}"   # va cambiato ad ogni test
-      PARTITION_COUNT: "${PARTITION_COUNT:-3}" # numero di partizioni del topic
-      RUN_ID: "${RUN_ID:-p3_s200}" # identificatore univoco per l'esecuzione del test
-      PAYLOAD_SIZE_BYTES: "${PAYLOAD_SIZE_BYTES:-200}" # dimensione del payload in byte
-      MESSAGES_PER_BATCH: "${MESSAGES_PER_BATCH:-1}" # numero di messaggi per batch
-      LINGER_MS: "${LINGER_MS:-0}" # tempo di attesa prima di inviare un batch
-      BATCH_SIZE_BYTES: "${BATCH_SIZE_BYTES:-32768}" # dimensione del batch in byte
-      CLIENT_ROLE: prod2 # ruolo del client per distinguere i producer
+      BOOTSTRAP_SERVERS: "broker_1:29092,broker_2:29092,broker_3:29092" # indirizzo del broker Kafka
+      TOPIC_NAME: "test_partitions_3"   # va cambiato ad ogni test
+      PARTITION_COUNT: "3" # numero di partizioni del topic
+      RUN_ID: "p3_s200" # identificatore univoco per l'esecuzione del test
+      PAYLOAD_SIZE_BYTES: "200" # dimensione del payload in byte
+      NB_MESSAGES_PER_BATCH: "10" # numero di messaggi per batch
+      CONTAINER_NAME: "producer_2"
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
 
-  consumer-g1-c1:
+  consumer_1_g1:
     build: ./consumer # costruisce l'immagine Docker per il consumer partendo dal Dockerfile nella cartella ./consumer
+    container_name: consumer_1_g1
     depends_on:
-      - kafka1 # assicura che il servizio Kafka sia avviato prima del consumer
-      - kafka2
-      - kafka3
+      - broker_1 # assicura che il servizio Kafka sia avviato prima del consumer
+      - broker_2
+      - broker_3
     environment:
-      BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
-      TOPIC_NAME: "${TOPIC_NAME:-test-topic-3}"   # va cambiato ad ogni test
-      PARTITION_COUNT: "${PARTITION_COUNT:-3}" # numero di partizioni del topic
-      RUN_ID: "${RUN_ID:-p3_s200}" # identificatore univoco per l'esecuzione del test
+      BOOTSTRAP_SERVERS: "broker_1:29092,broker_2:29092,broker_3:29092" # indirizzo del broker Kafka
+      TOPIC_NAME: "test_partitions_3"   # va cambiato ad ogni test
+      PARTITION_COUNT: "3" # numero di partizioni del topic
+      RUN_ID: "p3_s200" # identificatore univoco per l'esecuzione del test
       GROUP_ID: "group_1" # identificatore del gruppo di consumer
-      CLIENT_ROLE: g1_c1 # ruolo del client per distinguere i consumer
+      CONTAINER_NAME: "consumer_1_g1"
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
 
-  consumer-g1-c2:
+  consumer_2_g1:
     build: ./consumer # costruisce l'immagine Docker per il consumer partendo dal Dockerfile nella cartella ./consumer
+    container_name: consumer_2_g1
     depends_on:
-      - kafka1 # assicura che il servizio Kafka sia avviato prima del consumer
-      - kafka2
-      - kafka3
+      - broker_1 # assicura che il servizio Kafka sia avviato prima del consumer
+      - broker_2
+      - broker_3
     environment:
-      BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
-      TOPIC_NAME: "${TOPIC_NAME:-test-topic-3}"   # va cambiato ad ogni test
-      PARTITION_COUNT: "${PARTITION_COUNT:-3}" # numero di partizioni del topic
-      RUN_ID: "${RUN_ID:-p3_s200}" # identificatore univoco per l'esecuzione del test
+      BOOTSTRAP_SERVERS: "broker_1:29092,broker_2:29092,broker_3:29092" # indirizzo del broker Kafka
+      TOPIC_NAME: "test_partitions_3"   # va cambiato ad ogni test
+      PARTITION_COUNT: "3" # numero di partizioni del topic
+      RUN_ID: "p3_s200" # identificatore univoco per l'esecuzione del test
       GROUP_ID: "group_1" # identificatore del gruppo di consumer
-      CLIENT_ROLE: g1_c2 # ruolo del client per distinguere i consumer
+      CONTAINER_NAME: "consumer_2_g1"
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
 
-  consumer-g2-c1:
+  consumer_1_g2:
     build: ./consumer # costruisce l'immagine Docker per il consumer partendo dal Dockerfile nella cartella ./consumer
+    container_name: consumer_1_g2
     depends_on:
-      - kafka1 # assicura che il servizio Kafka sia avviato prima del consumer
-      - kafka2
-      - kafka3
+      - broker_1 # assicura che il servizio Kafka sia avviato prima del consumer
+      - broker_2
+      - broker_3
     environment:
-      BOOTSTRAP_SERVERS: "kafka1:29092,kafka2:29092,kafka3:29092" # indirizzo del broker Kafka
-      TOPIC_NAME: "${TOPIC_NAME:-test-topic-3}"   # va cambiato ad ogni test
-      PARTITION_COUNT: "${PARTITION_COUNT:-3}" # numero di partizioni del topic
-      RUN_ID: "${RUN_ID:-p3_s200}" # identificatore univoco per l'esecuzione del test
+      BOOTSTRAP_SERVERS: "broker_1:29092,broker_2:29092,broker_3:29092" # indirizzo del broker Kafka
+      TOPIC_NAME: "test_partitions_3"   # va cambiato ad ogni test
+      PARTITION_COUNT: "3" # numero di partizioni del topic
+      RUN_ID: "p3_s200" # identificatore univoco per l'esecuzione del test
       GROUP_ID: "group_2" # identificatore del gruppo di consumer
-      CLIENT_ROLE: g2_c1 # ruolo del client per distinguere i consumer
+      CONTAINER_NAME: "consumer_1_g2"
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente

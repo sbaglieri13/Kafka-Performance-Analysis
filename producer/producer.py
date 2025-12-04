@@ -1,122 +1,148 @@
 import os
 import time
 import json
+import socket
 from pathlib import Path
+
 from confluent_kafka import Producer
 
-bootstrap = os.getenv("BOOTSTRAP_SERVERS") # Kafka bootstrap servers
-topic = os.getenv("TOPIC_NAME") # Kafka topic dove il producer invia i messaggi
+bootstrap = os.getenv("BOOTSTRAP_SERVERS")
+topic = os.getenv("TOPIC_NAME")
 run_id = os.getenv("RUN_ID")
+payload_size_bytes = int(os.getenv("PAYLOAD_SIZE_BYTES"))
+nb_messages_per_batch = int(os.getenv("NB_MESSAGES_PER_BATCH"))
+producer_name = os.getenv("CONTAINER_NAME", socket.gethostname())
 
-payload_size_bytes = int(os.getenv("PAYLOAD_SIZE_BYTES"))  # dimensione del payload di ogni messaggio in byte
-partition_count = int(os.getenv("PARTITION_COUNT")) # numero di partizioni del topic
+current_batch_id = 0 # serve per tracciare l'ID del batch corrente cosi da testare se effettivamente in un batch ci sono i messaggi attesi
+messages_in_current_batch = 0
 
-messages_per_batch = int(os.getenv("MESSAGES_PER_BATCH", "1"))
-linger_ms = int(os.getenv("LINGER_MS", "0")) # tempo di attesa prima di inviare un batch in millisecondi
-batch_size_bytes = int(os.getenv("BATCH_SIZE_BYTES", "32768")) # dimensione del batch in byte
+data_dir = Path("/app/data")
+data_dir.mkdir(parents=True, exist_ok=True)
 
-role = os.getenv("CLIENT_ROLE", "prod")
-out_file = Path("/app/data") / f"producer_metrics_{role}_{run_id}.jsonl"
+# File per salvare i record dei messaggi inviati
+jsonl_path = data_dir / f"{producer_name}_{run_id}_messages.jsonl"
 
+def make_message_string() -> str:
+    '''Crea una stringa di lunghezza esatta payload_size_bytes'''
+    base = "xxxx"
+    padding_len = max(payload_size_bytes - len(base), 0)
+    # sempre base + tante 'x' (tagliate se serve)
+    s = base + ("x" * padding_len)
+    return s[:payload_size_bytes]
+
+# stima preliminare della dimensione messaggio
+def estimate_message_size() -> int:
+    tmp_key = "0"
+    tmp_message_text = make_message_string()
+    tmp_payload = {
+        "key": tmp_key,
+        "run_id": run_id,
+        "topic": topic,
+        "message": tmp_message_text,
+        "send_timestamp_ns": 0,
+        "write_timestamp_ns": None,
+        "status": "PENDING",
+    }
+    value_bytes = json.dumps(tmp_payload).encode("utf-8")
+    return len(tmp_key.encode("utf-8")) + len(value_bytes)
+
+estimated_msg_size = estimate_message_size()
+batch_size_bytes = int(estimated_msg_size * nb_messages_per_batch * 1.2) # margine del 20% per sicurezza
 
 producer_conf = {
-    "bootstrap.servers": bootstrap, # Kafka bootstrap servers
-    "linger.ms": linger_ms, # tempo massimo (in millisecondi) che il producer aspetta per accumulare messaggi in un batch prima di inviarli
-    "batch.size": batch_size_bytes, # dimensione massima (in byte) del batch in memoria per ogni partizione
-    "enable.idempotence": True, # abilita l’idempotenza del producer (con sequence number interno), così in caso di retry non ottieni duplicati sul topic, garantisce “exactly‑once” lato broker
+    "bootstrap.servers": bootstrap,
+    "linger.ms": 100, # imposto linger.ms a 100 ms per testare meglio il batching ed assiumere che venga riempito il batch
+    "batch.size": batch_size_bytes,
+    "enable.idempotence": True,
 }
 
 p = Producer(producer_conf)
 send_ts = {}
-last_send_ts = None
 
 
-def make_payload(msg_id: int) -> dict:
-    """
-    Costruisce un payload di dimensione controllata ~ payload_size_bytes
-    """
-    base = f"msg-{msg_id}-"
-    # riempi con 'x' fino a raggiungere (approssimativamente) la dimensione richiesta
-    padding_len = max(payload_size_bytes - len(base), 0)
-    data_str = base + ("x" * padding_len)
-    return {"id": msg_id, "data": data_str}
-
-# Callback function chiamata quando un messaggio è stato consegnato (o si è verificato un errore)
 def delivery_report(err, msg):
     msg_key = msg.key().decode("utf-8")
-    sent_at = send_ts.pop(msg_key, None)
-    written_at = time.time_ns()
+    send_timestamp = send_ts.pop(msg_key, None)
+    write_timestamp = time.time_ns()
     status = "OK" if err is None else f"ERROR:{err}"
 
-    delta_ms = None
-    if msg.headers():
-        for k, v in msg.headers():
-            if k == "delta_produce_ms" and v is not None:
-                delta_ms = float(v.decode("utf-8"))
-                break
+    full_payload_bytes = msg.value()              # bytes
+    full_payload = json.loads(full_payload_bytes.decode("utf-8"))
+    message_text = full_payload.get("message")
+    send_batch_id = full_payload.get("send_batch_id")
+
+    # dimensione totale del messaggio inviato al broker (key + value)
+    key_bytes = msg.key() or b""
+    message_size = len(key_bytes) + len(full_payload_bytes)
 
     record = {
+        "key": msg_key,
         "run_id": run_id,
         "topic": msg.topic(),
-        "partition": msg.partition(),
-        "offset": msg.offset(),
-        "key": msg_key,
-        "produce_call_ts_ns": sent_at,
-        "written_ts_ns": written_at,
+        "message": message_text,
+        "message_size_bytes": message_size,
+        "send_timestamp_ns": send_timestamp,
+        "write_timestamp_ns": write_timestamp,
         "status": status,
-        "payload_size_bytes": payload_size_bytes,
-        "partition_count": partition_count,
-        "messages_per_batch": messages_per_batch,
-        "linger_ms": linger_ms,
-        "batch_size_bytes": batch_size_bytes,
-        "delta_produce_ms": delta_ms,
+        "send_batch_id": send_batch_id,
     }
-    with out_file.open("a", encoding="utf-8") as f:
+
+    with jsonl_path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")
 
 
-# Invia un messaggio al topic
-def send_message(msg_id: int, payload: dict):
-    global last_send_ts
+
+
+def send_message(msg_id: int):
+    global current_batch_id, messages_in_current_batch
+
+    if messages_in_current_batch == 0:
+        current_batch_id += 1
 
     key = str(msg_id)
-    value = json.dumps(payload)
+    message_text = make_message_string()
 
-    now = time.time_ns()
-    send_ts[key] = now
+    send_timestamp = time.time_ns()
+    send_ts[key] = send_timestamp
 
-    # intervallo dal precedente invio (ms)
-    delta_ms = None
-    if last_send_ts is not None:
-        delta_ms = (now - last_send_ts) / 1e6
-    last_send_ts = now
-
-    headers = []
-    if delta_ms is not None:
-        headers.append(("delta_produce_ms", str(delta_ms).encode("utf-8")))
+    message = {
+        "key": key,
+        "run_id": run_id,
+        "topic": topic,
+        "message": message_text,
+        "send_timestamp_ns": send_timestamp, # timestamp (in nanosecondi) generato dal producer nell'istante esatto in cui il messaggio viene creato e “messo in coda” per l’invio
+        "write_timestamp_ns": None,
+        "status": "PENDING",
+        "send_batch_id": current_batch_id,
+    }
 
     p.produce(
         topic=topic,
         key=key,
-        value=value.encode("utf-8"),
-        headers=headers,
+        value=json.dumps(message).encode("utf-8"),
         callback=delivery_report,
     )
-    p.poll(0) # chiama le callback di consegna dei messaggi in sospeso
+    p.poll(0)
 
-# Generatore di messaggi
+    messages_in_current_batch += 1
+    if messages_in_current_batch >= nb_messages_per_batch:
+        messages_in_current_batch = 0
+
+
 def message_generator():
     msg_id = 0
     while True:
-        for _ in range(messages_per_batch):
-            msg_id += 1
-            payload = make_payload(msg_id)
-            send_message(msg_id, payload)
-
+        msg_id += 1
+        send_message(msg_id)
+        time.sleep(0.001)
 
 
 def main():
-    message_generator()
+    try:
+        message_generator()
+    finally:
+        p.flush()
+
 
 if __name__ == "__main__":
     main()
