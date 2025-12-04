@@ -36,11 +36,11 @@ def estimate_message_size() -> int:
     tmp_message_text = make_message_string()
     tmp_payload = {
         "key": tmp_key,
-        "run_id": run_id,
+        "run_id": producer_name+"_"+run_id,
         "topic": topic,
         "message": tmp_message_text,
-        "send_timestamp_ns": 0,
-        "write_timestamp_ns": None,
+        "send_timestamp_ms": 0,
+        "write_timestamp_ms": None,
         "status": "PENDING",
     }
     value_bytes = json.dumps(tmp_payload).encode("utf-8")
@@ -63,7 +63,7 @@ send_ts = {}
 def delivery_report(err, msg):
     msg_key = msg.key().decode("utf-8")
     send_timestamp = send_ts.pop(msg_key, None)
-    write_timestamp = time.time_ns()
+    write_timestamp = time.time_ns() / 1_000_000 # converto in millisecondi
     status = "OK" if err is None else f"ERROR:{err}"
 
     full_payload_bytes = msg.value()              # bytes
@@ -77,12 +77,12 @@ def delivery_report(err, msg):
 
     record = {
         "key": msg_key,
-        "run_id": run_id,
+        "run_id": producer_name+"_"+run_id,
         "topic": msg.topic(),
         "message": message_text,
         "message_size_bytes": message_size,
-        "send_timestamp_ns": send_timestamp,
-        "write_timestamp_ns": write_timestamp,
+        "send_timestamp_ms": send_timestamp,
+        "write_timestamp_ms": write_timestamp,
         "status": status,
         "send_batch_id": send_batch_id,
     }
@@ -102,16 +102,16 @@ def send_message(msg_id: int):
     key = str(msg_id)
     message_text = make_message_string()
 
-    send_timestamp = time.time_ns()
+    send_timestamp = time.time_ns() / 1_000_000 # converto in millisecondi
     send_ts[key] = send_timestamp
 
     message = {
         "key": key,
-        "run_id": run_id,
+        "run_id": producer_name+"_"+run_id,
         "topic": topic,
         "message": message_text,
-        "send_timestamp_ns": send_timestamp, # timestamp (in nanosecondi) generato dal producer nell'istante esatto in cui il messaggio viene creato e “messo in coda” per l’invio
-        "write_timestamp_ns": None,
+        "send_timestamp_ms": send_timestamp, # timestamp (in nanosecondi) generato dal producer nell'istante esatto in cui il messaggio viene creato e “messo in coda” per l’invio
+        "write_timestamp_ms": None,
         "status": "PENDING",
         "send_batch_id": current_batch_id,
     }
@@ -138,6 +138,9 @@ def message_generator():
 
 
 def main():
+    # attendo 20 secondi prima di iniziare a produrre
+    time.sleep(20)
+
     try:
         message_generator()
     finally:

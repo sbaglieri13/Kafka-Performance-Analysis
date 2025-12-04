@@ -39,11 +39,12 @@ def process_message(msg):
     - partition 
     - offset
     - message (dal payload)
-    - receive_timestamp_ns (momento di lettura)
-    - latency (differenza tra receive_timestamp_ns e send_timestamp_ns dal payload)
+    - receive_timestamp_ms (momento di lettura)
+    - latency (differenza tra receive_timestamp_ms e send_timestamp_ms dal payload)
     """
-    receive_ts_ns = time.time_ns()
-
+    
+    receive_ts = time.time_ns() / 1_000_000 # converto in millisecondi
+    
     key = msg.key().decode("utf-8") if msg.key() else None
     raw_value = msg.value().decode("utf-8") if msg.value() else None
 
@@ -53,23 +54,24 @@ def process_message(msg):
         payload = {}
 
     message_text = payload.get("message")
-    send_timestamp_ns = payload.get("send_timestamp_ns")
-
+    send_timestamp_ms = payload.get("send_timestamp_ms")
+    run_id_payload = payload.get("run_id")
+    
     delta_receive_minus_send = (
-        receive_ts_ns - send_timestamp_ns
-        if isinstance(send_timestamp_ns, int)
+        receive_ts - send_timestamp_ms
+        if isinstance(send_timestamp_ms, (int,float))
         else None
     )
 
     record = {
         "key": key,
-        "run_id": run_id,
+        "run_id": run_id_payload,
         "topic": msg.topic(),
         "partition": msg.partition(),
         "offset": msg.offset(),
         "message": message_text,
-        "receive_timestamp_ns": receive_ts_ns,
-        "latency": delta_receive_minus_send,
+        "receive_timestamp_ms": receive_ts,
+        "latency_ms": delta_receive_minus_send,
     }
 
     with out_file.open("a", encoding="utf-8") as f:

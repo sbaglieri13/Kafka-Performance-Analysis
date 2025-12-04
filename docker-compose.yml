@@ -90,7 +90,7 @@ services:
       BOOTSTRAP_SERVERS: "broker_1:29092,broker_2:29092,broker_3:29092" # indirizzo del broker Kafka
       TOPIC_NAME: "test_partitions_3"   # va cambiato ad ogni test
       PARTITION_COUNT: "3" # numero di partizioni del topic
-      RUN_ID: "p3_s200" # identificatore univoco per l'esecuzione del test
+      RUN_ID: "test_p3" # identificatore univoco per l'esecuzione del test
       PAYLOAD_SIZE_BYTES: "200" # dimensione del payload in byte
       NB_MESSAGES_PER_BATCH: "10" # numero di messaggi per batch
       CONTAINER_NAME: "producer_1"
@@ -108,7 +108,7 @@ services:
       BOOTSTRAP_SERVERS: "broker_1:29092,broker_2:29092,broker_3:29092" # indirizzo del broker Kafka
       TOPIC_NAME: "test_partitions_3"   # va cambiato ad ogni test
       PARTITION_COUNT: "3" # numero di partizioni del topic
-      RUN_ID: "p3_s200" # identificatore univoco per l'esecuzione del test
+      RUN_ID: "test_p3" # identificatore univoco per l'esecuzione del test
       PAYLOAD_SIZE_BYTES: "200" # dimensione del payload in byte
       NB_MESSAGES_PER_BATCH: "10" # numero di messaggi per batch
       CONTAINER_NAME: "producer_2"
@@ -126,7 +126,7 @@ services:
       BOOTSTRAP_SERVERS: "broker_1:29092,broker_2:29092,broker_3:29092" # indirizzo del broker Kafka
       TOPIC_NAME: "test_partitions_3"   # va cambiato ad ogni test
       PARTITION_COUNT: "3" # numero di partizioni del topic
-      RUN_ID: "p3_s200" # identificatore univoco per l'esecuzione del test
+      RUN_ID: "test_p3" # identificatore univoco per l'esecuzione del test
       GROUP_ID: "group_1" # identificatore del gruppo di consumer
       CONTAINER_NAME: "consumer_1_g1"
     volumes:
@@ -143,7 +143,7 @@ services:
       BOOTSTRAP_SERVERS: "broker_1:29092,broker_2:29092,broker_3:29092" # indirizzo del broker Kafka
       TOPIC_NAME: "test_partitions_3"   # va cambiato ad ogni test
       PARTITION_COUNT: "3" # numero di partizioni del topic
-      RUN_ID: "p3_s200" # identificatore univoco per l'esecuzione del test
+      RUN_ID: "test_p3" # identificatore univoco per l'esecuzione del test
       GROUP_ID: "group_1" # identificatore del gruppo di consumer
       CONTAINER_NAME: "consumer_2_g1"
     volumes:
@@ -160,7 +160,7 @@ services:
       BOOTSTRAP_SERVERS: "broker_1:29092,broker_2:29092,broker_3:29092" # indirizzo del broker Kafka
       TOPIC_NAME: "test_partitions_3"   # va cambiato ad ogni test
       PARTITION_COUNT: "3" # numero di partizioni del topic
-      RUN_ID: "p3_s200" # identificatore univoco per l'esecuzione del test
+      RUN_ID: "test_p3" # identificatore univoco per l'esecuzione del test
       GROUP_ID: "group_2" # identificatore del gruppo di consumer
       CONTAINER_NAME: "consumer_1_g2"
     volumes:
