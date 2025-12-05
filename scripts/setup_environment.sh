@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Vai nella root del progetto (cartella sopra scripts)
 cd "$(dirname "$0")/.."
 
 echo ">> Starting Kafka cluster..."
@@ -54,5 +53,7 @@ docker exec broker_1 kafka-topics --bootstrap-server broker_1:29092 --list
 echo ">> Starting producers and consumers"
 docker compose up --build -d producer_1 producer_2 consumer_1_g1 consumer_2_g1 consumer_1_g2
 
+echo ">> Starting message generator service"
+docker compose up --build -d message_generator
 
 echo ">> Environment setup completed successfully!"

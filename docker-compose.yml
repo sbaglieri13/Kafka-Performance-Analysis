@@ -93,6 +93,7 @@ services:
       RUN_ID: "test_p3" # identificatore univoco per l'esecuzione del test
       PAYLOAD_SIZE_BYTES: "200" # dimensione del payload in byte
       NB_MESSAGES_PER_BATCH: "10" # numero di messaggi per batch
+      MESSAGE_GENERATOR_URL: "http://message_generator:8000/next-message" # URL dell'API REST per ottenere i messaggi
       CONTAINER_NAME: "producer_1"
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
@@ -111,6 +112,7 @@ services:
       RUN_ID: "test_p3" # identificatore univoco per l'esecuzione del test
       PAYLOAD_SIZE_BYTES: "200" # dimensione del payload in byte
       NB_MESSAGES_PER_BATCH: "10" # numero di messaggi per batch
+      MESSAGE_GENERATOR_URL: "http://message_generator:8000/next-message" # URL dell'API REST per ottenere i messaggi
       CONTAINER_NAME: "producer_2"
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
@@ -165,3 +167,16 @@ services:
       CONTAINER_NAME: "consumer_1_g2"
     volumes:
       - ./data:/app/data # monta la cartella locale ./data nella cartella /app/data del container per salvare i CSV localmente
+
+  message_generator:
+    build: ./message_generator
+    container_name: message_generator
+    environment:
+      RUN_ID: "test_p3"
+      PAYLOAD_SIZE_BYTES: "200"
+    ports:
+      - "8000:8000" # espone la porta 8000 per l'API REST
+    depends_on:
+      - broker_1
+      - broker_2
+      - broker_3

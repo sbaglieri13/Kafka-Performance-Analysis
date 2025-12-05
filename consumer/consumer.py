@@ -3,14 +3,12 @@ import os
 import time
 import socket
 from pathlib import Path
-
 from confluent_kafka import Consumer
 
 bootstrap = os.getenv("BOOTSTRAP_SERVERS")      # Kafka bootstrap servers
 topic = os.getenv("TOPIC_NAME")                 # Topic da cui leggere
 run_id = os.getenv("RUN_ID")
 group_id = os.getenv("GROUP_ID")
-
 container_name = os.getenv("CONTAINER_NAME", socket.gethostname())
 
 data_dir = Path("/app/data")
@@ -19,6 +17,7 @@ data_dir.mkdir(parents=True, exist_ok=True)
 # <CONTAINER_NAME>_<RUN_ID>_messages.jsonl
 out_file = data_dir / f"{container_name}_{run_id}_messages.jsonl"
 
+# Configurazione del consumer Kafka
 consumer_conf = {
     "bootstrap.servers": bootstrap,
     "group.id": group_id,
@@ -31,8 +30,8 @@ c.subscribe([topic])
 
 def process_message(msg):
     """
-    Estrae i dati richiesti dal messaggio Kafka e scrive una riga JSONL.
-    Campi richiesti:
+    Estrae i dati dal messaggio Kafka e scrive una riga JSONL nel file di output
+    Campi estratti:
     - key
     - run_id
     - topic 
@@ -42,9 +41,9 @@ def process_message(msg):
     - receive_timestamp_ms (momento di lettura)
     - latency (differenza tra receive_timestamp_ms e send_timestamp_ms dal payload)
     """
-    
-    receive_ts = time.time_ns() / 1_000_000 # converto in millisecondi
-    
+
+    receive_ts = time.time_ns() / 1_000_000  # converto in millisecondi
+
     key = msg.key().decode("utf-8") if msg.key() else None
     raw_value = msg.value().decode("utf-8") if msg.value() else None
 
@@ -56,10 +55,10 @@ def process_message(msg):
     message_text = payload.get("message")
     send_timestamp_ms = payload.get("send_timestamp_ms")
     run_id_payload = payload.get("run_id")
-    
+
     delta_receive_minus_send = (
         receive_ts - send_timestamp_ms
-        if isinstance(send_timestamp_ms, (int,float))
+        if isinstance(send_timestamp_ms, (int, float))
         else None
     )
 
