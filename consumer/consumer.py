@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 import time
 import socket
 from pathlib import Path
@@ -27,6 +28,8 @@ consumer_conf = {
 c = Consumer(consumer_conf)
 c.subscribe([topic])
 
+print(f"Subscribed to topic: {topic}") 
+sys.stdout.flush()
 
 def process_message(msg):
     """

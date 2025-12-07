@@ -25,8 +25,6 @@ data_dir.mkdir(parents=True, exist_ok=True)
 jsonl_path = data_dir / f"{producer_name}_{run_id}_messages.jsonl"
 
 # stima preliminare della dimensione messaggio
-
-
 def estimate_message_size() -> int:
     tmp_key = "0"
     tmp_payload = {
@@ -44,14 +42,13 @@ def estimate_message_size() -> int:
 
 
 estimated_msg_size = estimate_message_size()
-# margine del 20% per sicurezza
-batch_size_bytes = int(estimated_msg_size * nb_messages_per_batch * 1.2)
+batch_size_bytes = int(estimated_msg_size * nb_messages_per_batch * 1.2) # margine del 20% per sicurezza
 
 producer_conf = {
     "bootstrap.servers": bootstrap,
     "linger.ms": 100,  # imposto linger.ms a 100 ms per testare meglio il batching ed assiumere che venga riempito il batch
     "batch.size": batch_size_bytes,
-    "enable.idempotence": True,
+    #"enable.idempotence": True,
 }
 
 p = Producer(producer_conf)
@@ -143,8 +140,7 @@ def send_message():
         "run_id": run_id_from_gen,
         "topic": topic,
         "message": message_text,
-        # timestamp (in ms) generato dal producer nell'istante esatto in cui il messaggio viene creato e “messo in coda” per l’invio
-        "send_timestamp_ms": send_timestamp,
+        "send_timestamp_ms": send_timestamp, # timestamp (in ms) generato dal producer nell'istante esatto in cui il messaggio viene creato e “messo in coda” per l’invio
         "write_timestamp_ms": None,
         "status": "PENDING",
         "send_batch_id": current_batch_id,
@@ -164,13 +160,14 @@ def send_message():
 
 
 def main():
-    # attendo 20 secondi prima di iniziare a produrre
-    time.sleep(20)
+    time.sleep(60) # attendo 60 secondi prima di iniziare a produrre
 
     try:
         while True:
             send_message()
-            time.sleep(0.001)
+            time.sleep(0.1) # piccolo delay per evitare di saturare la CPU
+                            # se usassi un time.sleep(0) il producer genererebbe troppi messaggi in poco tempo e 
+                            # il consumer non riuscirebbe a starci dietro aumentando quindi la latenza nel corso del tempo
     finally:
         p.flush()
 

@@ -3,7 +3,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-echo ">> Stop and cleanup Docker environment..."
-docker-compose down --volumes
+echo ">> Cleanup Docker environment..."
 
-echo ">> Docker environment cleaned up successfully"
+echo ">> Stopping and removing containers..."
+docker compose down --volumes > /dev/null 2>&1
+
+echo ">> Cleaning up networks..."
+docker network prune -f > /dev/null 2>&1
+
+echo ">> Docker environment cleaned up successfully!"
