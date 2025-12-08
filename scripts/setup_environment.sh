@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 # CONFIGURAZIONE INTERATTIVA NETWORK EMULATION
 # ============================================================
 
-# Funzione per configurare una singola rete (FUORI da configure_network_rules)
+# Funzione per configurare una singola rete 
 configure_single_network() {
     local network_name=$1
     local network_var=$2
@@ -114,7 +114,7 @@ EOF
 echo "============================================="
 echo "Setup Network Emulation"
 echo "============================================="
-# Chiedi se configurare network emulation
+# Chiedi se applicare regole 
 NETWORK_RULES_CONFIGURED="false"  
 read -p "Configure network emulation rules? (y/n): " -n 1 -r
 echo ""
@@ -136,6 +136,22 @@ fi
 echo "============================================="
 echo "Network emulation setup complete!"
 echo "============================================="
+
+# ============================================================
+# CONFIGURAZIONE DURATA ESPERIMENTO
+# ============================================================
+echo "============================================="
+echo "Experiment Duration Configuration"
+echo "============================================="
+
+read -p "Set experiment duration in seconds [default: 60]: " EXPERIMENT_DURATION
+EXPERIMENT_DURATION=${EXPERIMENT_DURATION:-60}
+
+echo ">> Experiment will run for ${EXPERIMENT_DURATION} seconds"
+echo ""
+
+# Esporta come variabile d'ambiente per docker-compose
+export EXPERIMENT_DURATION
 
 # ============================================================
 # BUILD DELLE IMMAGINI 

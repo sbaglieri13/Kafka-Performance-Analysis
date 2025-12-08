@@ -56,14 +56,8 @@ def process_message(msg):
         payload = {}
 
     message_text = payload.get("message")
-    send_timestamp_ms = payload.get("send_timestamp_ms")
+    producer_send_timestamp = payload.get("send_timestamp_ms")
     run_id_payload = payload.get("run_id")
-
-    delta_receive_minus_send = (
-        receive_ts - send_timestamp_ms
-        if isinstance(send_timestamp_ms, (int, float))
-        else None
-    )
 
     record = {
         "key": key,
@@ -73,7 +67,7 @@ def process_message(msg):
         "offset": msg.offset(),
         "message": message_text,
         "receive_timestamp_ms": receive_ts,
-        "latency_ms": delta_receive_minus_send,
+        "producer_send_timestamp_ms": producer_send_timestamp,
     }
 
     with out_file.open("a", encoding="utf-8") as f:

@@ -109,6 +109,7 @@ services:
       PAYLOAD_SIZE_BYTES: "200"
       NB_MESSAGES_PER_BATCH: "10"
       MESSAGE_GENERATOR_URL: "http://172.20.50.10:8000/next-message"
+      EXPERIMENT_DURATION: "${EXPERIMENT_DURATION:-60}"
       CONTAINER_NAME: "producer_1"
     volumes:
       - ./data:/app/data
@@ -136,6 +137,7 @@ services:
       PAYLOAD_SIZE_BYTES: "200"
       NB_MESSAGES_PER_BATCH: "10"
       MESSAGE_GENERATOR_URL: "http://172.20.50.10:8000/next-message"
+      EXPERIMENT_DURATION: "${EXPERIMENT_DURATION:-60}"
       CONTAINER_NAME: "producer_2"
     volumes:
       - ./data:/app/data

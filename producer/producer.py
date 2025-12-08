@@ -160,17 +160,26 @@ def send_message():
 
 
 def main():
+    experiment_duration = int(os.getenv("EXPERIMENT_DURATION", "60"))
+    
     time.sleep(60) # attendo 60 secondi prima di iniziare a produrre
-
+    
+    start_time = time.time()
+    end_time = start_time + experiment_duration
+    
     try:
-        while True:
+        while time.time() < end_time:
             send_message()
             time.sleep(0.1) # piccolo delay per evitare di saturare la CPU
                             # se usassi un time.sleep(0) il producer genererebbe troppi messaggi in poco tempo e 
                             # il consumer non riuscirebbe a starci dietro aumentando quindi la latenza nel corso del tempo
+        while True:
+            time.sleep(60)
     finally:
         p.flush()
 
 
 if __name__ == "__main__":
     main()
+
+
