@@ -1,7 +1,5 @@
 # Kafka Performance Analysis
 
-## Panoramica
-
 Questo progetto implementa un ambiente Kafka distribuito con:
 - **3 broker Kafka** in modalità KRaft
 - **2 producer** che generano messaggi
@@ -10,11 +8,13 @@ Questo progetto implementa un ambiente Kafka distribuito con:
 - **Message Generator** per la creazione controllata di messaggi
 - **Statistical Analysis Tool** per l'analisi della latenza
 
-L'infrastruttura misura e analizza la latenza end-to-end dei messaggi Kafka in diverse condizioni di rete.
+Ognuno dei componenti sopra è stato implementato come servizio docker, ad eccezione del **Statistical Analysis Tool** che per il momento è un semplice file python da lanciare quando necessario.
+
+L'infrastruttura misura e analizza la latenza end-to-end dei messaggi Kafka in diverse condizioni di rete configurabili tramite script al setup dell'ambiente.
 
 ## Architettura
 
-### Reti Docker
+### Docker Networks
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -46,7 +46,7 @@ L'infrastruttura misura e analizza la latenza end-to-end dei messaggi Kafka in d
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Flusso dei Dati
+### Flusso dati
 
 ```
 message_generator → producer_1/producer_2 → [network_emulator] → brokers → [network_emulator] → consumers
@@ -58,7 +58,21 @@ message_generator → producer_1/producer_2 → [network_emulator] → brokers �
 
 ## Quick Start
 
-### 1. Setup Iniziale
+
+### 1. Preparazione Ambiente Python
+
+```bash
+# Crea un ambiente virtuale
+python -m venv venv
+
+# Attiva l'ambiente virtuale
+venv/bin/activate
+
+# Installa i requisiti
+pip install -r requirements.txt
+```
+
+### 2. Setup Iniziale
 
 ```bash
 bash scripts/setup_environment.sh
@@ -70,13 +84,14 @@ Questo script:
 - Effettua il build delle immagini Docker
 - Avvia tutti i servizi
 
-### 2. Esecuzione Esperimento
+### 3. Esecuzione Esperimento
 
 L'esperimento inizia automaticamente dopo il setup. Durante l'esecuzione:
 - **Minuti 0-1**: Fase di inizializzazione dei servizi
 - **Minuti 1+**: Produzione e consumo di messaggi
 
-### 3. Analisi dei Risultati
+### 4. Analisi dei Risultati
+Al termine dell'esperimento è possibie effettuare l'analisi della latency con il comando: 
 
 ```bash
 python statistical_analysis_tool/statistical_analysis_tool.py
@@ -84,7 +99,7 @@ python statistical_analysis_tool/statistical_analysis_tool.py
 
 Questo genera `data/latency_report.json` con le statistiche di latenza.
 
-### 4. Cleanup
+### 5. Cleanup
 
 ```bash
 bash scripts/teardown_environment.sh
@@ -113,11 +128,11 @@ Ferma i container e pulisce i file (con prompt interattivo).
 │   ├── Dockerfile
 │   ├── message_generator.py
 │   └── requirements.txt
-├── network_emulator/                # Emulatore condizioni di rete
+├── network_emulator/                # Emulatore condizioni di rete e funge da router centrale
 │   ├── Dockerfile
 │   ├── configure_routing.sh
 │   └── network_rules.conf
-├── statistical_analysis_tool/       # Analizzatore latenza
+├── statistical_analysis_tool/       # Analisi della latenza end-to-end
 │   └── statistical_analysis_tool.py
 ├── scripts/
 │   ├── setup_environment.sh         # Setup iniziale
@@ -125,7 +140,7 @@ Ferma i container e pulisce i file (con prompt interattivo).
 ├── data/                            # Output (messaggi e report)
 ├── docker-compose.yml               # Orchestrazione servizi
 ├── README.md
-└── requirements.txt                 # Pacchetti necessari
+└── requirements.txt                 # Pacchetti necessari alla preparazione dell'ambiente python
 ```
 
 ## Configurazione Network Emulation
@@ -215,6 +230,7 @@ Produce messaggi a Kafka con:
 - Timestamp di invio
 - ID batch per tracciamento
 - Payload configurabile
+- ....
 
 ### consumer.py
 
@@ -222,6 +238,7 @@ Consuma messaggi da Kafka e registra:
 - Timestamp di ricezione
 - Partition e offset
 - Timestamp originale del producer (per calcolo latenza)
+- ....
 
 ### message_generator.py
 
@@ -263,5 +280,6 @@ Il file `docker-compose.yml` orchestra:
 | `RUN_ID` | ID della run per tracciamento | test_p3 |
 | `PAYLOAD_SIZE_BYTES` | Dimensione payload messaggi | 200 |
 | `NB_MESSAGES_PER_BATCH` | Messaggi per batch | 10 |
+| `PARTITION_COUNT` | Numero di partizioni | 3 |
 | `BOOTSTRAP_SERVERS` | Server Kafka bootstrap | broker_*:29092 |
 
