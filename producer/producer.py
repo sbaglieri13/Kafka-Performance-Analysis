@@ -22,7 +22,7 @@ data_dir = Path("/app/data")
 data_dir.mkdir(parents=True, exist_ok=True)
 
 # File per salvare i record dei messaggi inviati
-jsonl_path = data_dir / f"{producer_name}_{run_id}_messages.jsonl"
+jsonl_path = data_dir / f"{producer_name}_{run_id}_messages_recap.jsonl"
 
 # stima preliminare della dimensione messaggio
 def estimate_message_size() -> int:
@@ -168,9 +168,10 @@ def main():
     end_time = start_time + experiment_duration
     
     try:
-        while time.time() < end_time:
+        while time.time() < end_time or messages_in_current_batch > 0: # invia messaggi fino alla fine dell'esperimento, ma completa il batch corrente
             send_message()
-            time.sleep(0.1) # piccolo delay per evitare di saturare la CPU
+            time.sleep(0.1) # 10 msg/sec
+                            # piccolo delay per evitare di saturare la CPU
                             # se usassi un time.sleep(0) il producer genererebbe troppi messaggi in poco tempo e 
                             # il consumer non riuscirebbe a starci dietro aumentando quindi la latenza nel corso del tempo
         while True:

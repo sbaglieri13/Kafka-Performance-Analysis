@@ -16,7 +16,7 @@ data_dir = Path("/app/data")
 data_dir.mkdir(parents=True, exist_ok=True)
 
 # <CONTAINER_NAME>_<RUN_ID>_messages.jsonl
-out_file = data_dir / f"{container_name}_{run_id}_messages.jsonl"
+out_file = data_dir / f"{container_name}_{run_id}_messages_recap.jsonl"
 
 # Configurazione del consumer Kafka
 consumer_conf = {
@@ -42,7 +42,7 @@ def process_message(msg):
     - offset
     - message (dal payload)
     - receive_timestamp_ms (momento di lettura)
-    - latency (differenza tra receive_timestamp_ms e send_timestamp_ms dal payload)
+    - producer_send_timestamp_ms (timestamp inviato dal producer)
     """
 
     receive_ts = time.time_ns() / 1_000_000  # converto in millisecondi

@@ -14,7 +14,7 @@ class LatencyAnalyzer:
     
     def load_consumer_data(self) -> pd.DataFrame:
         """Carica tutti i file JSONL dei consumer"""
-        consumer_files = list(self.data_dir.glob("consumer_*_messages.jsonl"))
+        consumer_files = list(self.data_dir.glob("consumer_*_messages_recap.jsonl"))
         
         if not consumer_files:
             print(f"No consumer files found in {self.data_dir}")
@@ -25,7 +25,7 @@ class LatencyAnalyzer:
         all_data = []
         for file_path in consumer_files:
             filename = file_path.stem  
-            parts = filename.replace("_messages", "").split("_")
+            parts = filename.replace("_messages_recap", "").split("_")
             
             # Estrai container_name (es: consumer_1_g1)
             container_parts = []

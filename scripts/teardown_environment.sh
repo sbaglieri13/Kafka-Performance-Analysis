@@ -20,7 +20,7 @@ echo ""
     
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ">> Cleaning producer and consumer data files..."
-    rm -f ./data/*_messages.jsonl
+    rm -f ./data/*_messages_recap.jsonl
     echo "   ✓ JSONL files deleted"
 else
     echo "   X Producer and consumer data files skipped"

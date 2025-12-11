@@ -103,11 +103,11 @@ services:
       - network_emulator
     environment:
       BOOTSTRAP_SERVERS: "172.20.10.11:29092,172.20.10.12:29092,172.20.10.13:29092"
-      TOPIC_NAME: "test_partitions_3"
-      PARTITION_COUNT: "3"
-      RUN_ID: "test_p3"
-      PAYLOAD_SIZE_BYTES: "200"
-      NB_MESSAGES_PER_BATCH: "10"
+      TOPIC_NAME: "${TOPIC_NAME}"
+      PARTITION_COUNT: "${PARTITION_COUNT}"
+      RUN_ID: "${RUN_ID}"
+      PAYLOAD_SIZE_BYTES: "${PAYLOAD_SIZE_BYTES}"
+      NB_MESSAGES_PER_BATCH: "${NB_MESSAGES_PER_BATCH}"
       MESSAGE_GENERATOR_URL: "http://172.20.50.10:8000/next-message"
       EXPERIMENT_DURATION: "${EXPERIMENT_DURATION:-60}"
       CONTAINER_NAME: "producer_1"
@@ -131,11 +131,11 @@ services:
       - network_emulator
     environment:
       BOOTSTRAP_SERVERS: "172.20.10.11:29092,172.20.10.12:29092,172.20.10.13:29092"
-      TOPIC_NAME: "test_partitions_3"
-      PARTITION_COUNT: "3"
-      RUN_ID: "test_p3"
-      PAYLOAD_SIZE_BYTES: "200"
-      NB_MESSAGES_PER_BATCH: "10"
+      TOPIC_NAME: "${TOPIC_NAME}"
+      PARTITION_COUNT: "${PARTITION_COUNT}"
+      RUN_ID: "${RUN_ID}"
+      PAYLOAD_SIZE_BYTES: "${PAYLOAD_SIZE_BYTES}"
+      NB_MESSAGES_PER_BATCH: "${NB_MESSAGES_PER_BATCH}"
       MESSAGE_GENERATOR_URL: "http://172.20.50.10:8000/next-message"
       EXPERIMENT_DURATION: "${EXPERIMENT_DURATION:-60}"
       CONTAINER_NAME: "producer_2"
@@ -159,9 +159,9 @@ services:
       - network_emulator
     environment:
       BOOTSTRAP_SERVERS: "172.20.10.11:29092,172.20.10.12:29092,172.20.10.13:29092"
-      TOPIC_NAME: "test_partitions_3"
-      PARTITION_COUNT: "3"
-      RUN_ID: "test_p3"
+      TOPIC_NAME: "${TOPIC_NAME}"
+      PARTITION_COUNT: "${PARTITION_COUNT}"
+      RUN_ID: "${RUN_ID}"
       GROUP_ID: "group_1"
       CONTAINER_NAME: "consumer_1_g1"
     volumes:
@@ -182,9 +182,9 @@ services:
       - network_emulator
     environment:
       BOOTSTRAP_SERVERS: "172.20.10.11:29092,172.20.10.12:29092,172.20.10.13:29092"
-      TOPIC_NAME: "test_partitions_3"
-      PARTITION_COUNT: "3"
-      RUN_ID: "test_p3"
+      TOPIC_NAME: "${TOPIC_NAME}"
+      PARTITION_COUNT: "${PARTITION_COUNT}"
+      RUN_ID: "${RUN_ID}"
       GROUP_ID: "group_1"
       CONTAINER_NAME: "consumer_2_g1"
     volumes:
@@ -205,9 +205,9 @@ services:
       - network_emulator
     environment:
       BOOTSTRAP_SERVERS: "172.20.10.11:29092,172.20.10.12:29092,172.20.10.13:29092"
-      TOPIC_NAME: "test_partitions_3"
-      PARTITION_COUNT: "3"
-      RUN_ID: "test_p3"
+      TOPIC_NAME: "${TOPIC_NAME}"
+      PARTITION_COUNT: "${PARTITION_COUNT}"
+      RUN_ID: "${RUN_ID}"
       GROUP_ID: "group_2"
       CONTAINER_NAME: "consumer_1_g2"
     volumes:
@@ -222,8 +222,8 @@ services:
     build: ./message_generator
     container_name: message_generator
     environment:
-      RUN_ID: "test_p3"
-      PAYLOAD_SIZE_BYTES: "200"
+      RUN_ID: "${RUN_ID}"
+      PAYLOAD_SIZE_BYTES: "${PAYLOAD_SIZE_BYTES}"
     ports:
       - "8000:8000"
     depends_on:

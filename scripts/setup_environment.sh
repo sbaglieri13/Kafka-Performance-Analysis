@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 # ============================================================
-# FUNZIONE TIMER ESPERIMENTO CON BARRA DI PROGRESSO DINAMICA
+# FUNZIONE PROGRESS BAR ESPERIMENTO
 # ============================================================
 experiment_timer() {
     local total_duration=$1
@@ -228,6 +228,88 @@ echo ""
 export EXPERIMENT_DURATION
 
 # ============================================================
+# CONFIGURAZIONE TOPIC E PARAMETRI ESPERIMENTO
+# ============================================================
+echo "============================================="
+echo "Experiment Configuration"
+echo "============================================="
+
+# Scelta topic (numero partizioni)
+echo ""
+echo "Select Kafka topic (by number of partitions):"
+echo "  1) 3 partitions"
+echo "  2) 6 partitions"
+echo "  3) 9 partitions"
+echo "  4) 12 partitions"
+read -n 1 -p "Choice (1-4) [default: 1]: " topic_choice
+echo ""  
+topic_choice=${topic_choice:-1}
+
+case $topic_choice in
+    1)
+        PARTITION_COUNT=3
+        TOPIC_NAME="test_3_partitions"
+        ;;
+    2)
+        PARTITION_COUNT=6
+        TOPIC_NAME="test_6_partitions"
+        ;;
+    3)
+        PARTITION_COUNT=9
+        TOPIC_NAME="test_9_partitions"
+        ;;
+    4)
+        PARTITION_COUNT=12
+        TOPIC_NAME="test_12_partitions"
+        ;;
+    *)
+        echo "Invalid choice, using default (3 partitions)"
+        PARTITION_COUNT=3
+        TOPIC_NAME="test_3_partitions"
+        ;;
+esac
+
+echo ">> Selected topic: $TOPIC_NAME with $PARTITION_COUNT partitions"
+echo ""
+
+# Payload size
+read -p "Payload size in bytes [default: 200]: " PAYLOAD_SIZE_BYTES
+PAYLOAD_SIZE_BYTES=${PAYLOAD_SIZE_BYTES:-200}
+echo ">> Payload size: ${PAYLOAD_SIZE_BYTES} bytes"
+echo ""
+
+# Batch size
+read -p "Number of messages per batch [default: 50]: " NB_MESSAGES_PER_BATCH
+NB_MESSAGES_PER_BATCH=${NB_MESSAGES_PER_BATCH:-50}
+echo ">> Batch size: ${NB_MESSAGES_PER_BATCH} messages"
+echo ""
+
+# Componi RUN_ID
+RUN_ID="${TOPIC_NAME}_NB_${NB_MESSAGES_PER_BATCH}_PS_${PAYLOAD_SIZE_BYTES}"
+echo ">> Run ID: ${RUN_ID}"
+echo ""
+
+# Esporta tutte le variabili per docker-compose
+export TOPIC_NAME
+export PARTITION_COUNT
+export RUN_ID
+export PAYLOAD_SIZE_BYTES
+export NB_MESSAGES_PER_BATCH
+
+echo "============================================="
+echo "Configuration Summary"
+echo "============================================="
+echo "Topic: $TOPIC_NAME"
+echo "Partitions: $PARTITION_COUNT"
+echo "Payload size: $PAYLOAD_SIZE_BYTES bytes"
+echo "Batch size: $NB_MESSAGES_PER_BATCH messages"
+echo "Run ID: $RUN_ID"
+echo "Experiment duration: $EXPERIMENT_DURATION seconds"
+echo "============================================="
+echo ""
+
+
+# ============================================================
 # BUILD DELLE IMMAGINI 
 # ============================================================
 echo "============================================="
@@ -326,30 +408,30 @@ echo ">> Brokers ready, creating topics..."
 docker exec -it broker_1 kafka-topics \
   --bootstrap-server broker_1:29092 \
   --create \
-  --topic test_partitions_3 \
+  --topic test_3_partitions \
   --partitions 3 --replication-factor 3 \
-  2>&1 | grep -q "Created topic" && echo "   ✓ Created topic: test_partitions_3" || echo "   X Topic already exists: test_partitions_3"
+  2>&1 | grep -q "Created topic" && echo "   ✓ Created topic: test_3_partitions" || echo "   X Topic already exists: test_3_partitions"
 
 docker exec -it broker_1 kafka-topics \
   --bootstrap-server broker_1:29092 \
   --create \
-  --topic test_partitions_6 \
+  --topic test_6_partitions \
   --partitions 6 --replication-factor 3 \
-  2>&1 | grep -q "Created topic" && echo "   ✓ Created topic: test_partitions_6" || echo "   X Topic already exists: test_partitions_6"
+  2>&1 | grep -q "Created topic" && echo "   ✓ Created topic: test_6_partitions" || echo "   X Topic already exists: test_6_partitions"
 
 docker exec -it broker_1 kafka-topics \
   --bootstrap-server broker_1:29092 \
   --create \
-  --topic test_partitions_9 \
+  --topic test_9_partitions \
   --partitions 9 --replication-factor 3 \
-  2>&1 | grep -q "Created topic" && echo "   ✓ Created topic: test_partitions_9" || echo "   X Topic already exists: test_partitions_9"
+  2>&1 | grep -q "Created topic" && echo "   ✓ Created topic: test_9_partitions" || echo "   X Topic already exists: test_9_partitions"
 
 docker exec -it broker_1 kafka-topics \
   --bootstrap-server broker_1:29092 \
   --create \
-  --topic test_partitions_12 \
+  --topic test_12_partitions \
   --partitions 12 --replication-factor 3 \
-  2>&1 | grep -q "Created topic" && echo "   ✓ Created topic: test_partitions_12" || echo "   X Topic already exists: test_partitions_12"
+  2>&1 | grep -q "Created topic" && echo "   ✓ Created topic: test_12_partitions" || echo "   X Topic already exists: test_12_partitions"
 
 echo ">> Starting message generator service..."
 docker compose up -d message_generator > /dev/null 2>&1
