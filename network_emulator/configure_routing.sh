@@ -98,10 +98,6 @@ apply_tc_rules() {
                 local jitter_val=$(echo "$rule" | cut -d':' -f3)
                 netem_cmd="$netem_cmd delay $delay_val $jitter_val"
                 ;;
-            loss)
-                local loss_val=$(echo "$rule" | cut -d':' -f2)
-                netem_cmd="$netem_cmd loss $loss_val"
-                ;;
         esac
     done
     

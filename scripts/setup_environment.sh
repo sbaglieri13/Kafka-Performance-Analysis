@@ -89,53 +89,24 @@ configure_single_network() {
     
     echo ""
     echo "--- Configure $network_name ---"
-    read -p "Apply rules to $network_name? (y/n): " -n 1 -r
+    read -p "Apply delay to $network_name? (y/n): " -n 1 -r
     echo ""
     
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "Select rule type:"
-        echo "  1) Delay"
-        echo "  2) Loss"
-        echo "  3) Delay + Loss"
-        read -p "Choice (1-3): " -n 1 -r rule_choice
-        echo ""
+        read -p "Delay (ms) [default: 200]: " delay
+        delay=${delay:-200}
+        read -p "Jitter (ms) [default: 50]: " jitter
+        jitter=${jitter:-50}
         
-        local rule=""
-        
-        case $rule_choice in
-            1)
-                read -p "Delay (ms) [default: 200]: " delay
-                delay=${delay:-200}
-                read -p "Jitter (ms) [default: 50]: " jitter
-                jitter=${jitter:-50}
-                rule="delay:${delay}ms:${jitter}ms"
-                ;;
-            2)
-                read -p "Packet loss (%) [default: 30]: " loss
-                loss=${loss:-30}
-                rule="loss:${loss}%"
-                ;;
-            3)
-                read -p "Delay (ms) [default: 200]: " delay
-                delay=${delay:-200}
-                read -p "Jitter (ms) [default: 50]: " jitter
-                jitter=${jitter:-50}
-                read -p "Packet loss (%) [default: 10]: " loss
-                loss=${loss:-30}
-                rule="delay:${delay}ms:${jitter}ms,loss:${loss}%"
-                ;;
-            *)
-                echo "Invalid choice, skipping..."
-                rule="none"
-                ;;
-        esac
-        
+        local rule="delay:${delay}ms:${jitter}ms"
         sed -i "s/^$network_var=.*/$network_var=$rule/" network_emulator/network_rules.conf
         echo "   ✓ $network_name configured: $rule"
     else
-        echo "   X $network_name: no emulation"
+        sed -i "s/^$network_var=.*/$network_var=none/" network_emulator/network_rules.conf
+        echo "   X $network_name: no delay"
     fi
 }
+
 
 configure_network_rules() {
     echo "============================================="
@@ -148,9 +119,8 @@ configure_network_rules() {
     echo "  3) CONSUMERS_G1  (172.20.30.254)"
     echo "  4) CONSUMERS_G2  (172.20.40.254)"
     echo ""
-    echo "Available rules:"
-    echo "  - delay    (add latency)"
-    echo "  - loss     (packet loss)"
+    echo "Available rules"
+    echo "  - delay    (add network latency + jitter)"
     echo "  - none     (no emulation)"
     echo ""
     
