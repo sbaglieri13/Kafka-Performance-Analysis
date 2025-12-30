@@ -135,7 +135,13 @@ Ferma i container e pulisce i file (con prompt interattivo).
 ├── statistical_analysis_tool/       # Analisi della latenza end-to-end
 │   └── statistical_analysis_tool.py
 ├── scripts/
-│   ├── setup_environment.sh         # Setup iniziale
+|   └── modules                      # Moduli di supporto a setup_environment.sh
+│     ├── docker_build.sh         
+│     ├── docker_deploy.sh       
+│     ├── experiment_config.sh        
+│     ├── experiment_timer.sh        
+│     └── network_config.sh      
+|   ├── setup_environment.sh         # Setup iniziale
 │   └── teardown_environment.sh      # Cleanup
 ├── data/                            # Output (messaggi e report)
 ├── docker-compose.yml               # Orchestrazione servizi
@@ -152,16 +158,6 @@ Durante il setup, è possibile configurare le regole di emulazione per ogni rete
 1. **Delay**: Aggiunge latenza
    ```
    delay:200ms:50ms  # delay + jitter
-   ```
-
-2. **Loss**: Simula perdita di pacchetti
-   ```
-   loss:30%  # 30% packet loss
-   ```
-
-3. **Delay + Loss**: Combinazione
-   ```
-   delay:200ms:50ms,loss:10%
    ```
 
 ## Output e Analisi
