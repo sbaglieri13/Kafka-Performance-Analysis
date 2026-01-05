@@ -17,6 +17,7 @@ producer_name = os.getenv("CONTAINER_NAME", socket.gethostname())
 
 current_batch_id = 0  # serve per tracciare l'ID del batch corrente cosi da testare se effettivamente in un batch ci sono i messaggi attesi
 messages_in_current_batch = 0
+delivery_records = []
 
 data_dir = Path("/app/data")
 data_dir.mkdir(parents=True, exist_ok=True)
@@ -46,7 +47,7 @@ batch_size_bytes = int(estimated_msg_size * nb_messages_per_batch * 1.2) # margi
 
 producer_conf = {
     "bootstrap.servers": bootstrap,
-    "linger.ms": 100,  # imposto linger.ms a 100 ms per testare meglio il batching ed assiumere che venga riempito il batch
+    "linger.ms": 100,  # imposto linger.ms a 100 ms per testare meglio il batching ed essere sicuro che venga riempito il batch
     "batch.size": batch_size_bytes,
     #"enable.idempotence": True,
 }
@@ -112,9 +113,13 @@ def delivery_report(err, msg):
         "send_batch_id": send_batch_id,
     }
 
-    with jsonl_path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(record) + "\n")
+    delivery_records.append(record)
 
+def write_all_producer_records():
+    """Scrive tutti i record del producer alla fine dell'esperimento"""
+    with jsonl_path.open("w", encoding="utf-8") as f:
+        for record in delivery_records:
+            f.write(json.dumps(record) + "\n")
 
 def send_message():
     """
@@ -169,15 +174,14 @@ def main():
     
     try:
         while time.time() < end_time or messages_in_current_batch > 0: # invia messaggi fino alla fine dell'esperimento, ma completa il batch corrente
-            send_message()
-            time.sleep(0.1) # 10 msg/sec
-                            # piccolo delay per evitare di saturare la CPU
-                            # se usassi un time.sleep(0) il producer genererebbe troppi messaggi in poco tempo e 
-                            # il consumer non riuscirebbe a starci dietro aumentando quindi la latenza nel corso del tempo
-        while True:
-            time.sleep(60)
+            send_message()        
     finally:
         p.flush()
+        time.sleep(2)  # attendo un attimo per essere sicuro che tutte le callback di delivery_report siano state eseguite
+        write_all_producer_records()  
+    
+    while True:
+            time.sleep(60)
 
 
 if __name__ == "__main__":

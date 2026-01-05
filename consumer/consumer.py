@@ -27,6 +27,7 @@ consumer_conf = {
 
 c = Consumer(consumer_conf)
 c.subscribe([topic])
+message_records = []
 
 print(f"Subscribed to topic: {topic}") 
 sys.stdout.flush()
@@ -70,13 +71,23 @@ def process_message(msg):
         "producer_send_timestamp_ms": producer_send_timestamp,
     }
 
-    with out_file.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(record) + "\n")
+    message_records.append(record)
+    
+def write_all_records():
+    """Scrive tutti i record alla fine dell'esperimento"""
+    with out_file.open("w", encoding="utf-8") as f:
+        for record in message_records:
+            f.write(json.dumps(record) + "\n")
 
 
 def main():
+    
+    experiment_duration = int(os.getenv("EXPERIMENT_DURATION", "60"))
+    start_time = time.time() + 60  # warmup producer
+    end_time = start_time + experiment_duration + 30  # + 30 secondi buffer
+    
     try:
-        while True:
+        while time.time() < end_time:
             msg = c.poll(1.0)
             if msg is None:
                 continue
@@ -84,7 +95,11 @@ def main():
                 continue
             process_message(msg)
     finally:
+        write_all_records()
         c.close()
+    
+    while True:
+        time.sleep(60)
 
 
 if __name__ == "__main__":
