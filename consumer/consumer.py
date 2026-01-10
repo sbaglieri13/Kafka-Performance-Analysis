@@ -82,22 +82,57 @@ def write_all_records():
 
 def main():
     
-    experiment_duration = int(os.getenv("EXPERIMENT_DURATION", "60"))
-    start_time = time.time() + 60  # warmup producer
-    end_time = start_time + experiment_duration + 30  # + 30 secondi buffer
+    experiment_duration = int(os.getenv("EXPERIMENT_DURATION"))
     
-    try:
-        while time.time() < end_time:
+    buffer_time = 30  # buffer per ricevere ultimi messaggi
+    
+    messages_received = 0
+    start_time = None
+    end_time = None
+    
+    # Traccia producer che hanno finito
+    producers_finished = set()
+    expected_producers = {"producer_1", "producer_2"}
+    
+    try: 
+        while True:
+            
+            if end_time is not None and time.time() >= end_time:
+                break
+            
             msg = c.poll(1.0)
+            
             if msg is None:
                 continue
+            
             if msg.error():
                 continue
+            
+            # Primo messaggio ricevuto: inizializza il timer
+            if start_time is None:
+                start_time = time.time()
+                end_time = start_time + experiment_duration + buffer_time
+                
+            try:
+                data = json.loads(msg.value().decode('utf-8'))
+                
+                if data.get("type") == "END_SIGNAL":
+                    producer_name = data.get("producer")
+                    producers_finished.add(producer_name)
+                    
+                    # Se tutti i producer hanno finito, aspetta ancora un po' e poi esci
+                    if producers_finished >= expected_producers:
+                        end_time = time.time() + buffer_time
+                    continue  # Non processare il segnale END come messaggio normale
+                    
+            except (json.JSONDecodeError, UnicodeDecodeError, KeyError):
+                pass  # Non è JSON o non è decodificabile, processa come messaggio normale
+            
             process_message(msg)
+            messages_received += 1
     finally:
         write_all_records()
         c.close()
-    
     while True:
         time.sleep(60)
 

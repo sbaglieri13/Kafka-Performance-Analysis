@@ -1,0 +1,42 @@
+{
+  "run_id": "test_6_partitions_NB_50_PS_200",
+  "by_consumer": [
+    {
+      "consumer": "consumer_1_g1",
+      "latency_min_ms": 3.69970703125,
+      "latency_max_ms": 296.886474609375,
+      "latency_mean_ms": 71.19359957615569,
+      "message_count": 4586
+    },
+    {
+      "consumer": "consumer_1_g2",
+      "latency_min_ms": 3.3759765625,
+      "latency_max_ms": 377.096923828125,
+      "latency_mean_ms": 71.08242392263105,
+      "message_count": 9300
+    },
+    {
+      "consumer": "consumer_2_g1",
+      "latency_min_ms": 3.226318359375,
+      "latency_max_ms": 371.880126953125,
+      "latency_mean_ms": 70.39477337079379,
+      "message_count": 4714
+    }
+  ],
+  "by_group": [
+    {
+      "consumer_group": "group_1",
+      "latency_min_ms": 3.226318359375,
+      "latency_max_ms": 371.880126953125,
+      "latency_mean_ms": 70.7886891748572,
+      "message_count": 9300
+    },
+    {
+      "consumer_group": "group_2",
+      "latency_min_ms": 3.3759765625,
+      "latency_max_ms": 377.096923828125,
+      "latency_mean_ms": 71.08242392263105,
+      "message_count": 9300
+    }
+  ]
+}

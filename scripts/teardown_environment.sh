@@ -15,27 +15,27 @@ echo ">> Cleaning up networks..."
 # Remove all unused Docker networks
 docker network prune -f > /dev/null 2>&1
 
-read -p ">> Delete producer and consumer data files (*.jsonl)? (y/n): " -n 1 -r
+read -p ">> Delete producer and consumer data files (*_messages_recap.jsonl)? (y/n): " -n 1 -r
 echo ""
     
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ">> Cleaning producer and consumer data files..."
     rm -f ./data/*_messages_recap.jsonl
-    echo "   ✓ JSONL files deleted"
+    echo "   ✓ files deleted"
 else
-    echo "   X Producer and consumer data files skipped"
+    echo "   X files skipped"
 fi
 
 echo ""
-read -p ">> Delete analysis reports (latency_report.json)? (y/n): " -n 1 -r
+read -p ">> Delete producer stats files (*_stats.json)? (y/n): " -n 1 -r
 echo ""
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo ">> Cleaning analysis reports..."
-    rm -f ./data/latency_report*.json
-    echo "   ✓ Report files deleted"
+    echo ">> Cleaning producer stats files..."
+    rm -f ./data/stats/*_stats.json
+    echo "   ✓ files deleted"
 else
-    echo "   X Analysis reports skipped"
+    echo "   X files skipped"
 fi
 
 echo "================================================="

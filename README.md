@@ -1,4 +1,4 @@
-# Kafka Performance Analysis
+# Kafka Performance Analysis - DOCUMENTAZIONE NON AGGIORNATA
 
 Questo progetto implementa un ambiente Kafka distribuito con:
 - **3 broker Kafka** in modalità KRaft

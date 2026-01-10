@@ -5,12 +5,8 @@ from typing import Dict
 
 
 class LatencyAnalyzer:
-    def __init__(self, data_dir: str = "../data"):
-        script_dir = Path(__file__).parent
-        self.data_dir = (script_dir / data_dir).resolve()
-        
-        if not self.data_dir.exists():
-            raise FileNotFoundError(f"Data directory not found: {self.data_dir}")
+    def __init__(self):
+        self.data_dir = Path(__file__).parent.parent.parent / "data"
     
     def load_consumer_data(self) -> pd.DataFrame:
         """Carica tutti i file JSONL dei consumer"""
@@ -112,7 +108,8 @@ class LatencyAnalyzer:
     
     def save_report(self, report: Dict):
         """Salva il report in latency_report.json"""
-        output_file = self.data_dir / "latency_report.json"
+        output_dir = Path(__file__).parent / "reports"
+        output_file = output_dir / "latency_report.json"
         
         with open(output_file, 'w') as f:
             json.dump(report, f, indent=2)
@@ -122,7 +119,7 @@ class LatencyAnalyzer:
 
 def main():
     try:
-        analyzer = LatencyAnalyzer(data_dir="../data")
+        analyzer = LatencyAnalyzer()
         
         print("Analyzing data...")
         report = analyzer.generate_report()

@@ -63,6 +63,10 @@ experiment_timer() {
     
     local full_bar=$(printf "%${bar_length}s" | tr ' ' '#')
     printf "\r   [ %-${bar_length}s ] 100%% - Production completed!     \n" "$full_bar"
+
+    echo ""
+    echo ">> Waiting consumers..."
+    sleep 30  # Attende che i consumer completino l'elaborazione
     
     echo ""
     echo "============================================="

@@ -8,14 +8,27 @@ configure_experiment_duration() {
     echo "Experiment Duration Configuration"
     echo "============================================="
     
-    read -p "Set experiment duration in seconds [default: 60]: " EXPERIMENT_DURATION
-    EXPERIMENT_DURATION=${EXPERIMENT_DURATION:-60}
-    
-    echo ">> Experiment will run for ${EXPERIMENT_DURATION} seconds"
-    echo ""
-    
-    # Esporta come variabile d'ambiente per docker-compose
-    export EXPERIMENT_DURATION
+    if [[ "${EXPERIMENT_MODE:-1}" == "1" ]]; then
+        # Time-based mode
+        read -p "Set experiment duration in seconds [default: 60]: " EXPERIMENT_DURATION
+        EXPERIMENT_DURATION=${EXPERIMENT_DURATION:-60}
+        
+        echo ">> Experiment will run for ${EXPERIMENT_DURATION} seconds"
+        echo ""
+        
+        export EXPERIMENT_DURATION
+        export TARGET_MESSAGES="999999999" # valore alto per non limitare in base ai messaggi
+    else
+        # Message-based mode
+        read -p "Set target number of messages [default: 10000]: " TARGET_MESSAGES
+        TARGET_MESSAGES=${TARGET_MESSAGES:-10000}
+        
+        echo ">> Experiment will process ${TARGET_MESSAGES} messages"
+        echo ""
+        
+        export TARGET_MESSAGES
+        export EXPERIMENT_DURATION="999999999"  # valore alto per non limitare in base al tempo
+    fi
 }
 
 # ============================================================
@@ -96,7 +109,15 @@ configure_experiment_parameters() {
     echo "Payload size: $PAYLOAD_SIZE_BYTES bytes"
     echo "Batch size: $NB_MESSAGES_PER_BATCH messages"
     echo "Run ID: $RUN_ID"
-    echo "Experiment duration: $EXPERIMENT_DURATION seconds"
+
+    if [[ "${EXPERIMENT_MODE:-1}" == "1" ]]; then
+        echo "Mode: Time-based"
+        echo "Experiment duration: $EXPERIMENT_DURATION seconds"
+    else
+        echo "Mode: Message-based"
+        echo "Target messages: $TARGET_MESSAGES"
+    fi
+
     echo "============================================="
     echo ""
 }

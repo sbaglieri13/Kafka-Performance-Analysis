@@ -6,6 +6,7 @@ from pathlib import Path
 import requests
 from confluent_kafka import Producer
 
+
 MESSAGE_GENERATOR_URL = os.getenv("MESSAGE_GENERATOR_URL")
 
 bootstrap = os.getenv("BOOTSTRAP_SERVERS")
@@ -14,6 +15,7 @@ run_id = os.getenv("RUN_ID")
 payload_size_bytes = int(os.getenv("PAYLOAD_SIZE_BYTES"))
 nb_messages_per_batch = int(os.getenv("NB_MESSAGES_PER_BATCH"))
 producer_name = os.getenv("CONTAINER_NAME", socket.gethostname())
+partition_count = int(os.getenv("PARTITION_COUNT"))
 
 current_batch_id = 0  # serve per tracciare l'ID del batch corrente cosi da testare se effettivamente in un batch ci sono i messaggi attesi
 messages_in_current_batch = 0
@@ -21,6 +23,9 @@ delivery_records = []
 
 data_dir = Path("/app/data")
 data_dir.mkdir(parents=True, exist_ok=True)
+
+stats_dir = Path("/app/data/stats")
+stats_dir.mkdir(parents=True, exist_ok=True)
 
 # File per salvare i record dei messaggi inviati
 jsonl_path = data_dir / f"{producer_name}_{run_id}_messages_recap.jsonl"
@@ -115,11 +120,13 @@ def delivery_report(err, msg):
 
     delivery_records.append(record)
 
+
 def write_all_producer_records():
     """Scrive tutti i record del producer alla fine dell'esperimento"""
     with jsonl_path.open("w", encoding="utf-8") as f:
         for record in delivery_records:
             f.write(json.dumps(record) + "\n")
+
 
 def send_message():
     """
@@ -165,26 +172,77 @@ def send_message():
 
 
 def main():
-    experiment_duration = int(os.getenv("EXPERIMENT_DURATION", "60"))
-    
-    time.sleep(60) # attendo 60 secondi prima di iniziare a produrre
-    
-    start_time = time.time()
-    end_time = start_time + experiment_duration
+    target_messages = int(os.getenv("TARGET_MESSAGES")) # numero totale di messaggi da inviare
+    experiment_duration = int(os.getenv("EXPERIMENT_DURATION")) # durata massima dell'esperimento in secondi
+    time.sleep(60)  # attendo che tutti i consumer siano pronti
+    transmission_start = time.time()
+    end_time = transmission_start + experiment_duration
     
     try:
-        while time.time() < end_time or messages_in_current_batch > 0: # invia messaggi fino alla fine dell'esperimento, ma completa il batch corrente
-            send_message()        
+        messages_sent = 0
+        while (messages_sent < target_messages and time.time() < end_time) or messages_in_current_batch > 0:
+            if messages_sent < target_messages and time.time() < end_time:
+                send_message()
+                messages_sent += 1
+            elif messages_in_current_batch > 0:
+                # Completa il batch corrente anche se tempo/target sono raggiunti
+                send_message()
+                messages_sent += 1
+            else:
+                break  
     finally:
         p.flush()
-        time.sleep(2)  # attendo un attimo per essere sicuro che tutte le callback di delivery_report siano state eseguite
-        write_all_producer_records()  
+        transmission_end = time.time()
+        
+        # Invio segnale di fine trasmissione cosi che i consumer possano terminare
+        for partition in range(partition_count):
+            end_signal = json.dumps({
+                "type": "END_SIGNAL",
+                "producer": producer_name,
+                "timestamp": time.time()
+            })
+            p.produce(topic, end_signal.encode('utf-8'), partition=partition)
+        p.flush()
+        
+        time.sleep(2)
+        write_all_producer_records()
+        
+        total_time = transmission_end - transmission_start
+        num_messages = len(delivery_records)
+        total_payload_bytes = sum(r['message_size_bytes'] for r in delivery_records)
+        unique_batches = len(set(r['send_batch_id'] for r in delivery_records))
+        
+        # Overhead Kafka da documentazione ufficiale
+        record_overhead = num_messages * 34 # header per record
+        batch_overhead = unique_batches * 61 # header per batch
+        request_overhead = unique_batches * 40 # header per richiesta
+        kafka_overhead = record_overhead + batch_overhead + request_overhead # totale overhead Kafka in byte
+        
+        kafka_total = total_payload_bytes + kafka_overhead # totale byte inviati a Kafka
+        throughput_kbps = (kafka_total / 1024) / total_time # in KB/s
+        overhead_pct = (kafka_overhead / kafka_total) * 100
+        
+        stats = {
+            "run_id": run_id,
+            "producer_name": producer_name,
+            "batch_size": nb_messages_per_batch,
+            "num_messages": num_messages,
+            "num_batches": unique_batches,
+            "payload_bytes": total_payload_bytes,
+            "kafka_overhead_bytes": kafka_overhead,
+            "kafka_total_bytes": kafka_total,
+            "transmission_time_seconds": round(total_time, 2),
+            "throughput_kbps": round(throughput_kbps, 2),
+            "overhead_percentage": round(overhead_pct, 2)
+        }
+        
+        stats_path = stats_dir / f"{producer_name}_{run_id}_stats.json"
+        with stats_path.open('w') as f:
+            json.dump(stats, f, indent=2)
     
     while True:
-            time.sleep(60)
+        time.sleep(60) # mantiene il container attivo
 
 
 if __name__ == "__main__":
     main()
-
-

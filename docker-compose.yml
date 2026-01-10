@@ -110,6 +110,7 @@ services:
       NB_MESSAGES_PER_BATCH: "${NB_MESSAGES_PER_BATCH}"
       MESSAGE_GENERATOR_URL: "http://172.20.50.10:8000/next-message"
       EXPERIMENT_DURATION: "${EXPERIMENT_DURATION:-60}"
+      TARGET_MESSAGES: "${TARGET_MESSAGES:-10000}"
       CONTAINER_NAME: "producer_1"
     volumes:
       - ./data:/app/data
@@ -138,6 +139,7 @@ services:
       NB_MESSAGES_PER_BATCH: "${NB_MESSAGES_PER_BATCH}"
       MESSAGE_GENERATOR_URL: "http://172.20.50.10:8000/next-message"
       EXPERIMENT_DURATION: "${EXPERIMENT_DURATION:-60}"
+      TARGET_MESSAGES: "${TARGET_MESSAGES:-10000}"
       CONTAINER_NAME: "producer_2"
     volumes:
       - ./data:/app/data
@@ -163,6 +165,7 @@ services:
       PARTITION_COUNT: "${PARTITION_COUNT}"
       RUN_ID: "${RUN_ID}"
       GROUP_ID: "group_1"
+      EXPERIMENT_DURATION: "${EXPERIMENT_DURATION:-60}"
       CONTAINER_NAME: "consumer_1_g1"
     volumes:
       - ./data:/app/data
@@ -186,6 +189,7 @@ services:
       PARTITION_COUNT: "${PARTITION_COUNT}"
       RUN_ID: "${RUN_ID}"
       GROUP_ID: "group_1"
+      EXPERIMENT_DURATION: "${EXPERIMENT_DURATION:-60}"
       CONTAINER_NAME: "consumer_2_g1"
     volumes:
       - ./data:/app/data
@@ -209,6 +213,7 @@ services:
       PARTITION_COUNT: "${PARTITION_COUNT}"
       RUN_ID: "${RUN_ID}"
       GROUP_ID: "group_2"
+      EXPERIMENT_DURATION: "${EXPERIMENT_DURATION:-60}"
       CONTAINER_NAME: "consumer_1_g2"
     volumes:
       - ./data:/app/data

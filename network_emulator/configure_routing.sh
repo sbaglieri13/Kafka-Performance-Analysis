@@ -83,7 +83,7 @@ apply_tc_rules() {
         return
     fi
     
-    # Parse rules (formato: "delay:200ms:50ms" o "loss:30%" o "delay:200ms:50ms,loss:10%")
+    # Parse rules (formato: "delay:200ms:50ms")
     local netem_cmd="tc qdisc add dev $interface root netem"
     
     # Sostituisci ',' con spazio per separare multiple regole
