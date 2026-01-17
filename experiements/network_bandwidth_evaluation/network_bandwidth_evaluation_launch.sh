@@ -8,7 +8,7 @@ source ./scripts/modules/docker_deploy.sh
 
 PARTITION_COUNTS=(3 6 9 12)
 PAYLOAD_SIZE_BYTES=1000
-TARGET_MESSAGES=10000
+TARGET_MESSAGES=50000
 BATCH_SIZES=(1 2 3 4 5 6 7 8 9 10 12 13 15 16 18 20 21 23 24 26 29 30 32 35 37 40 41 45 49 50)
 
 STATS_DIR="./data/stats"
@@ -57,7 +57,7 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
         echo "  Waiting for stats files..."
         
         # Aspetta che i file stats.json vengano creati
-        TIMEOUT=600  # 10 minuti max
+        TIMEOUT=1800  # 30 minuti max
         ELAPSED=0
         
         while [[ $ELAPSED -lt $TIMEOUT ]]; do
@@ -80,6 +80,10 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
             echo "  X Timeout! Stats files were not created in time."
             exit 1
         fi
+
+        # Aggiorna i file stats 
+        echo "  Updating stats with JMX..."
+        python scripts/update_stats_with_jmx.py "$RUN_ID" "$TOPIC_NAME" > /dev/null 2>&1
         
         echo "  ✓ Batch size ${BATCH_SIZE} completed!"
         

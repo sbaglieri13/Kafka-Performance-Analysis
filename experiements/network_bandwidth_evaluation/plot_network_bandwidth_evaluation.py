@@ -32,14 +32,13 @@ def main():
                 
                 if batch_size not in data_by_batch:
                     data_by_batch[batch_size] = {
-                        'kafka_total_bytes': 0,
-                        'transmission_time_seconds': 0,
+                        'throughput_kbps': [],
                         'overhead_percentage': []
                     }
-                
-                data_by_batch[batch_size]['kafka_total_bytes'] += data['kafka_total_bytes']
-                data_by_batch[batch_size]['transmission_time_seconds'] += data['transmission_time_seconds']
+
+                data_by_batch[batch_size]['throughput_kbps'].append(data['throughput_kbps'])
                 data_by_batch[batch_size]['overhead_percentage'].append(data['overhead_percentage'])
+
         
         # Calcola throughput e overhead medi per batch size
         batch_sizes = []
@@ -51,9 +50,7 @@ def main():
             stats = data_by_batch[batch_size]
             
             # Throughput medio in KB/s
-            total_kb = stats['kafka_total_bytes'] / 1024
-            total_time = stats['transmission_time_seconds']
-            throughput = total_kb / total_time
+            throughput = sum(stats['throughput_kbps']) / len(stats['throughput_kbps'])
             
             # Overhead medio in %
             overhead = sum(stats['overhead_percentage']) / len(stats['overhead_percentage'])
@@ -68,7 +65,6 @@ def main():
         throughputs = np.array(throughputs)
         overheads = np.array(overheads)
         
-        #batch_smooth = np.linspace(min(batch_sizes), max(batch_sizes), 300)
         batch_smooth = np.linspace(1, max(batch_sizes), 300)
         
         # Throughput prediction: funzione esponenziale saturante T(x) = c - a * exp(-b*x)

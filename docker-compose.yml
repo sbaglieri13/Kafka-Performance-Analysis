@@ -5,6 +5,7 @@ services:
     hostname: broker_1
     ports:
       - "9092:9092"
+      - "9999:9999"  # JMX port
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: "broker,controller"
@@ -18,6 +19,8 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       CLUSTER_ID: "abcdefghijklmnopqrstuv"
+      KAFKA_JMX_PORT: 9999
+      KAFKA_JMX_HOSTNAME: localhost
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
@@ -31,6 +34,7 @@ services:
     hostname: broker_2
     ports:
       - "9093:9093"
+      - "10000:10000"  # JMX port
     environment:
       KAFKA_NODE_ID: 2
       KAFKA_PROCESS_ROLES: "broker,controller"
@@ -44,6 +48,8 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       CLUSTER_ID: "abcdefghijklmnopqrstuv"
+      KAFKA_JMX_PORT: 10000
+      KAFKA_JMX_HOSTNAME: localhost
     restart: unless-stopped
     cap_add:
       - NET_ADMIN
@@ -57,6 +63,7 @@ services:
     hostname: broker_3
     ports:
       - "9094:9094"
+      - "10001:10001"  # JMX port
     environment:
       KAFKA_NODE_ID: 3
       KAFKA_PROCESS_ROLES: "broker,controller"
@@ -70,6 +77,8 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
       CLUSTER_ID: "abcdefghijklmnopqrstuv"
+      KAFKA_JMX_PORT: 10001
+      KAFKA_JMX_HOSTNAME: localhost
     restart: unless-stopped
     cap_add:
       - NET_ADMIN

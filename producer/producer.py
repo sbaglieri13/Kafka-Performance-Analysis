@@ -212,16 +212,6 @@ def main():
         total_payload_bytes = sum(r['message_size_bytes'] for r in delivery_records)
         unique_batches = len(set(r['send_batch_id'] for r in delivery_records))
         
-        # Overhead Kafka da documentazione ufficiale
-        record_overhead = num_messages * 34 # header per record
-        batch_overhead = unique_batches * 61 # header per batch
-        request_overhead = unique_batches * 40 # header per richiesta
-        kafka_overhead = record_overhead + batch_overhead + request_overhead # totale overhead Kafka in byte
-        
-        kafka_total = total_payload_bytes + kafka_overhead # totale byte inviati a Kafka
-        throughput_kbps = (kafka_total / 1024) / total_time # in KB/s
-        overhead_pct = (kafka_overhead / kafka_total) * 100
-        
         stats = {
             "run_id": run_id,
             "producer_name": producer_name,
@@ -229,11 +219,12 @@ def main():
             "num_messages": num_messages,
             "num_batches": unique_batches,
             "payload_bytes": total_payload_bytes,
-            "kafka_overhead_bytes": kafka_overhead,
-            "kafka_total_bytes": kafka_total,
             "transmission_time_seconds": round(total_time, 2),
-            "throughput_kbps": round(throughput_kbps, 2),
-            "overhead_percentage": round(overhead_pct, 2)
+            # Overhead sarà aggiunto dopo da script esterno
+            "kafka_overhead_bytes": None,
+            "kafka_total_bytes": None,
+            "throughput_kbps": None,
+            "overhead_percentage": None
         }
         
         stats_path = stats_dir / f"{producer_name}_{run_id}_stats.json"

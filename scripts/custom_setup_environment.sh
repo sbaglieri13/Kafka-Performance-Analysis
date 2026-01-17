@@ -80,3 +80,5 @@ else
         exit 1
     fi
 fi
+
+python scripts/update_stats_with_jmx.py "$RUN_ID" "$TOPIC_NAME" > /dev/null 2>&1
