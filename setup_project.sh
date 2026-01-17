@@ -18,7 +18,19 @@ echo ""
 
 # Step 2: Attiva virtual environment
 echo ">> Step 2/4: Activating venv..."
-source venv/bin/activate
+# Rileva il sistema operativo
+if [ -f "venv/bin/activate" ]; then
+    # Linux/Mac
+    source venv/bin/activate
+elif [ -f "venv/Scripts/activate" ]; then
+    # Windows/Git Bash
+    source venv/Scripts/activate
+else
+    echo "   X Error: Cannot find activate script"
+    echo "   Check venv structure:"
+    ls -la venv/
+    exit 1
+fi
 echo "   ✓ Virtual environment activated"
 echo ""
 
