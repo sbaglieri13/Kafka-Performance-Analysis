@@ -1,113 +1,62 @@
-# Kafka Performance Analysis - DOCUMENTAZIONE NON AGGIORNATA
+# Kafka Performance Analysis
 
-Questo progetto implementa un ambiente Kafka distribuito con:
+## 📖 Panoramica
+
+Questo progetto implementa un ambiente Kafka distribuito per l'analisi delle performance in condizioni di rete controllate. Prevede:
 - **3 broker Kafka** in modalità KRaft
 - **2 producer** che generano messaggi
 - **3 consumer** suddivisi in 2 gruppi
-- **Network Emulator** per simulare latenza e perdita di pacchetti
+- **Network Emulator** per simulare delay
 - **Message Generator** per la creazione controllata di messaggi
-- **Statistical Analysis Tool** per l'analisi della latenza
 
-Ognuno dei componenti sopra è stato implementato come servizio docker, ad eccezione del **Statistical Analysis Tool** che per il momento è un semplice file python da lanciare quando necessario.
+Ognuno di questi componenti è stato implementato come servizio docker.
 
-L'infrastruttura misura e analizza la latenza end-to-end dei messaggi Kafka in diverse condizioni di rete configurabili tramite script al setup dell'ambiente.
+## 🏗️ Architettura
 
-## Architettura
+### Componenti principali
 
-### Docker Networks
+#### Kafka brokers (3 istanze)
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                                                         │
-│  172.20.10.0/24 (BROKERS)                               │
-│  ├─ broker_1 (172.20.10.11)                             │
-│  ├─ broker_2 (172.20.10.12)                             │
-│  ├─ broker_3 (172.20.10.13)                             │
-│  ├─ kafka_ui (172.20.10.20)                             │
-│  └─ network_emulator (172.20.10.254) [ROUTER]           │
-│                                                         │
-│  172.20.20.0/24 (PRODUCERS)                             │
-│  ├─ producer_1 (172.20.20.11)                           │
-│  ├─ producer_2 (172.20.20.12)                           │
-│  └─ network_emulator (172.20.20.254) [ROUTER]           │
-│                                                         │
-│  172.20.30.0/24 (CONSUMERS GROUP 1)                     │
-│  ├─ consumer_1_g1 (172.20.30.11)                        │
-│  ├─ consumer_2_g1 (172.20.30.12)                        │
-│  └─ network_emulator (172.20.30.254) [ROUTER]           │
-│                                                         │
-│  172.20.40.0/24 (CONSUMERS GROUP 2)                     │
-│  ├─ consumer_1_g2 (172.20.40.11)                        │
-│  └─ network_emulator (172.20.40.254) [ROUTER]           │
-│                                                         │
-│  172.20.50.0/24 (MESSAGE GENERATOR)                     │
-│  └─ message_generator (172.20.50.10)                    │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
+- Modalità KRaft 
+- Porte: 9092, 9093, 9094 (host), 29092 (inter-broker)
+- Porte JMX: 9999, 10000, 10001 per metriche
+- Rete: `net_brokers` (172.20.10.0/24)
+- Replication Factor: 3
+- Min ISR: 2 (numero minimo di repliche “in-sync”)
 
-### Flusso dati
+#### Producers (2 istanze)
 
-```
-message_generator → producer_1/producer_2 → [network_emulator] → brokers → [network_emulator] → consumers
-                    ↓                                                                              ↓
-                    └─ producer_*_messages.jsonl ←──────────────────── consumer_*_messages.jsonl ─┘
-                                                                                ↓
-                                              statistical_analysis_tool → latency_report.json
-```
+- Recuperano messaggi dal *Message Generator* tramite una chiamate API GET
+- Inoltrano verso Kafka con batching configurabile
+- Scrivono file `data/stats/*_stats.json` con:
+  - metriche di invio
+  - overhead e throughput misurati dai broker via JMX
+- Rete: `net_producers` (172.20.20.0/24) + `net_msggen`
 
-## Quick Start
+#### Consumers (3 istanze)
+
+- 2 consumer in `group_1`, 1 consumer in `group_2`
+- Tracciano timestamp di ricezione per la latency analysis
+- Salvano il recap dei messaggi processati
+- Reti: `net_consumers_g1` (172.20.30.0/24), `net_consumers_g2` (172.20.40.0/24)
+
+#### Message Generator
+
+- Servizio FastAPI con endpoint `/next-message`
+- Genera payload con chiave incrementale e metadata temporali
+- Rete: `net_msggen` (172.20.50.0/24)
+
+#### Network Emulator
+
+- Router centrale collegato a tutte le subnet
+- Applica regole `tc/netem` per simulare delay
+
+#### Kafka UI
+
+- Interfaccia web per monitorare il cluster su porta 8080
 
 
-### 1. Preparazione Ambiente Python
-
-```bash
-# Crea un ambiente virtuale
-python -m venv venv
-
-# Attiva l'ambiente virtuale
-venv/bin/activate
-
-# Installa i requisiti
-pip install -r requirements.txt
-```
-
-### 2. Setup Iniziale
-
-```bash
-bash scripts/setup_environment.sh
-```
-
-Questo script:
-- Configura le regole di emulazione di rete (delay, packet loss)
-- Imposta la durata dell'esperimento
-- Effettua il build delle immagini Docker
-- Avvia tutti i servizi
-
-### 3. Esecuzione Esperimento
-
-L'esperimento inizia automaticamente dopo il setup. Durante l'esecuzione:
-- **Minuti 0-1**: Fase di inizializzazione dei servizi
-- **Minuti 1+**: Produzione e consumo di messaggi
-
-### 4. Analisi dei Risultati
-Al termine dell'esperimento è possibie effettuare l'analisi della latency con il comando: 
-
-```bash
-python statistical_analysis_tool/statistical_analysis_tool.py
-```
-
-Questo genera `data/latency_report.json` con le statistiche di latenza.
-
-### 5. Cleanup
-
-```bash
-bash scripts/teardown_environment.sh
-```
-
-Ferma i container e pulisce i file (con prompt interattivo).
-
-## Struttura del Progetto
+## 📁 Struttura del Progetto
 
 ```
 .
@@ -132,49 +81,146 @@ Ferma i container e pulisce i file (con prompt interattivo).
 │   ├── Dockerfile
 │   ├── configure_routing.sh
 │   └── network_rules.conf
-├── statistical_analysis_tool/       # Analisi della latenza end-to-end
-│   └── statistical_analysis_tool.py
+├── experiments/
+│   ├── latency_analysis/
+│   |   ├── reports/
+│   |   |   └── latency_report.json       # Output dell'esprimento
+│   │   └── latency_analysis.py 
+│   └── network_bandwidth_evaluation/
+│       ├── plots/
+│       |   └── network_bandwidth_evaluation.png      # Output dell'esprimento
+│       ├── network_bandwidth_evaluation_launch.sh 
+│       └── plot_network_bandwidth_evaluation.py 
 ├── scripts/
-|   └── modules                      # Moduli di supporto a setup_environment.sh
+|   └── modules/                      # Moduli di supporto
 │     ├── docker_build.sh         
 │     ├── docker_deploy.sh       
 │     ├── experiment_config.sh        
 │     ├── experiment_timer.sh        
 │     └── network_config.sh      
-|   ├── setup_environment.sh         # Setup iniziale
-│   └── teardown_environment.sh      # Cleanup
-├── data/                            # Output (messaggi e report)
+|   ├── custom_setup_environment.sh  # Avvio dell'ambiente 
+│   ├── teardown_environment.sh      # Cleanup
+│   └── update_stats_with_jmx.py     # Raccoglie le metriche con JMX
+├── data/                            # Output (messaggi, recap e statistiche)
+|   └── stats/ 
 ├── docker-compose.yml               # Orchestrazione servizi
-├── README.md
+├── setup_project.sh                 # Script per setup iniziale del progetto
+├── .gitignore
+├── README.md                        # Documentazione
 └── requirements.txt                 # Pacchetti necessari alla preparazione dell'ambiente python
 ```
 
-## Configurazione Network Emulation
+## 🚀 Quick Start
 
-Durante il setup, è possibile configurare le regole di emulazione per ogni rete:
 
-### Tipi di Regole Disponibili
+### Preparazione Ambiente Python
 
-1. **Delay**: Aggiunge latenza
-   ```
-   delay:200ms:50ms  # delay + jitter
-   ```
+```bash
+# Setup automatico (crea venv, installa dipendenze, crea directory data e data/stats)
+./setup_project.sh
 
-## Output e Analisi
+# Attiva l'ambiente virtuale
+# Linux/Mac:
+source venv/bin/activate
+
+# Windows (Git Bash):
+source venv/Scripts/activate
+```
+
+## 🧪 Esperimenti
+
+### 1. Esperimento Singolo
+
+```bash
+./scripts/custom_setup_environment.sh
+```
+
+Parametri richiesti:
+- Modalità: Time-based (1) o Message-based (2)
+- Network Emulation: Configura delay/jitter per ogni subnet
+- Topic: Scegli numero di partizioni (3, 6, 9, 12)
+- Payload Size: Dimensione messaggi in bytes
+- Batch Size: Messaggi per batch
+- Duration/Target: Secondi o numero messaggi
+
+Questo script:
+- Configura le regole di emulazione di rete (delay, packet loss)
+- Imposta la durata dell'esperimento o il target dei messaggi da generare 
+- Regola payload size, numero di messaggi per batch, ...
+- Effettua il build delle immagini Docker
+- Avvia tutti i servizi
+
+Durante l'esecuzione:
+- **Minuti 0-1**: Fase di inizializzazione dei servizi
+- **Minuti 1+**: Produzione e consumo di messaggi
+
+Al termine dell'esperimento è saranno disponibili nella folder `data` il recap dei messaggi generati, e nella folder `data\stats` le statistiche varie, tra cui throughput e overhead.
+
+### 2. Network Bandwidth Evaluation
+
+```bash
+./experiments/network_bandwidth_evaluation/network_bandwidth_evaluation_launch.sh
+```
+Esegue 120 esperimenti (4 partizioni × 30 batch sizes):
+- PARTITION_COUNTS=(3 6 9 12)
+- PAYLOAD_SIZE_BYTES=1000
+- TARGET_MESSAGES=50000
+- BATCH_SIZES=(1 2 3 4 5 6 7 8 9 10 12 13 15 16 18 20 21 23 24 26 29 30 32 35 37 40 41 45 49 50)
+
+Per generare il plot in experiments/network_bandwidth_evaluation/plots/ con l'andamento del throughput e overhead per ogni esecuzione:
+```bash
+python ./experiments/network_bandwidth_evaluation/plot_network_bandwidth_evaluation.py
+```
+
+Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
+- Asse Y sinistro (blu): Throughput (KB/s) con prediction curve
+- Asse Y destro (rosso): Overhead (%) con prediction curve
+- Marker blu (+): Risultati sperimentali throughput
+- Marker rosso (○): Risultati sperimentali overhead
+
+Modelli di fitting:
+- **Throughput (saturazione esponenziale):**
+  $$
+  T(x) = c - a \cdot e^{-b x}
+  $$
+
+- **Overhead (decadimento esponenziale):**
+  $$
+  O(x) = a \cdot e^{-b x} + c
+  $$
+
+
+### 3. Analisi Latency
+Lanciare un esperimento singolo come al punto 1. Successivamente:
+```bash
+python ./experiments/latency_analysis/latency_analysis.py
+```
+Output: `reports/latency_report.json`
+
+### 🧹 Cleanup
+
+```bash
+bash scripts/teardown_environment.sh
+```
+
+Ferma i container e pulisce i file (con prompt interattivo).
+
+
+## 📊 Metriche e Output
 
 ### File di Output
 
 - **`data/producer_*_messages.jsonl`**: Record di invio messaggi
   ```json
   {
-    "key": "123",
-    "run_id": "test_p3",
-    "topic": "test_partitions_3",
-    "message": "xxxx...",
-    "message_size_bytes": 256,
-    "send_timestamp_ms": 1704067200000.5,
-    "write_timestamp_ms": 1704067200010.2,
-    "status": "OK",
+    "key": "8", 
+    "run_id": "test_3_partitions_NB_50_PS_200", 
+    "topic": "test_3_partitions", 
+    "message": ".........", 
+    "message_size_bytes": 411, 
+    "send_timestamp_ms": 1768665395468.925, 
+    "write_timestamp_ms": 1768665395623.809, 
+    "status": "OK", 
     "send_batch_id": 1
   }
   ```
@@ -182,81 +228,85 @@ Durante il setup, è possibile configurare le regole di emulazione per ogni rete
 - **`data/consumer_*_messages.jsonl`**: Record di ricezione messaggi
   ```json
   {
-    "key": "123",
-    "run_id": "test_p3",
-    "topic": "test_partitions_3",
-    "partition": 0,
-    "offset": 42,
-    "message": "xxxx...",
-    "receive_timestamp_ms": 1704067200050.8,
-    "producer_send_timestamp_ms": 1704067200000.5
+    "key": "1", 
+    "run_id": "test_3_partitions_NB_50_PS_200", 
+    "topic": "test_3_partitions", 
+    "partition": 2, 
+    "offset": 0, 
+    "message": "..........", 
+    "receive_timestamp_ms": 1768665395603.1628, 
+    "producer_send_timestamp_ms": 1768665395455.4229
   }
   ```
 
-- **`data/latency_report.json`**: Report di analisi
+- **`data/stats/producer_*_stats.json`**: Statistiche del producer
   ```json
   {
-    "run_id": "test_p3",
+    "run_id": "test_3_partitions_NB_50_PS_200",
+    "producer_name": "producer_1",
+    "batch_size": 50,
+    "num_messages": 30850,
+    "num_batches": 617,
+    "payload_bytes": 12993955,
+    "transmission_time_seconds": 120.05,
+    "kafka_overhead_bytes": 969945,
+    "kafka_total_bytes": 26978709,
+    "throughput_kbps": 219.17,
+    "overhead_percentage": 3.6
+  }
+  ```
+
+- **`experiments/latency_analysis/reports/latency_report.json`**: Latency Report
+  ```json
+  {
+    "run_id": "test_3_partitions_NB_50_PS_200",
     "by_consumer": [
       {
         "consumer": "consumer_1_g1",
-        "latency_min_ms": 2.5,
-        "latency_max_ms": 150.8,
-        "latency_mean_ms": 45.3,
-        "message_count": 5420
+        "latency_min_ms": 2.593994140625,
+        "latency_max_ms": 184.5341796875,
+        "latency_mean_ms": 58.01090192773885,
+        "message_count": 41038
+      },
+      {
+        "consumer": "consumer_1_g2",
+        "latency_min_ms": 2.374267578125,
+        "latency_max_ms": 183.764404296875,
+        "latency_mean_ms": 58.00994950736968,
+        "message_count": 61750
+      },
+      {
+        "consumer": "consumer_2_g1",
+        "latency_min_ms": 2.220703125,
+        "latency_max_ms": 147.739990234375,
+        "latency_mean_ms": 57.999966842044316,
+        "message_count": 20712
       }
     ],
     "by_group": [
       {
         "consumer_group": "group_1",
-        "latency_min_ms": 2.1,
-        "latency_max_ms": 200.5,
-        "latency_mean_ms": 48.7,
-        "message_count": 10840
+        "latency_min_ms": 2.220703125,
+        "latency_max_ms": 184.5341796875,
+        "latency_mean_ms": 58.007234114056175,
+        "message_count": 61750
+      },
+      {
+        "consumer_group": "group_2",
+        "latency_min_ms": 2.374267578125,
+        "latency_max_ms": 183.764404296875,
+        "latency_mean_ms": 58.00994950736968,
+        "message_count": 61750
       }
     ]
   }
   ```
 
-## Componenti Principali
+- **`experiments/network_bandwidth_evaluation/plots/network_bandwidth_evaluation.png`**: Network Bandwidth Evaluation
+![Network Bandwidth Evaluation](./experiements/network_bandwidth_evaluation/plots/network_bandwidth_evaluation.png)
 
-### producer.py
 
-Produce messaggi a Kafka con:
-- Timestamp di invio
-- ID batch per tracciamento
-- Payload configurabile
-- ....
-
-### consumer.py
-
-Consuma messaggi da Kafka e registra:
-- Timestamp di ricezione
-- Partition e offset
-- Timestamp originale del producer (per calcolo latenza)
-- ....
-
-### message_generator.py
-
-FastAPI endpoint `/next-message` che fornisce:
-- ID messaggio incrementale
-- Payload di dimensione configurabile
-- Timestamp di generazione (al momento non utilizzato)
-
-### network_emulator/configure_routing.sh
-
-Configura l'infrastruttura di rete:
-- IP forwarding
-- NAT per comunicazione cross-subnet
-- Regole `tc` (traffic control) per emulazione latenza/loss
-
-### statistical_analysis_tool.py
-
-Analizza latenza end-to-end:
-- Calcola latenza per consumer
-- Aggrega per consumer group
-
-## Docker Compose
+## 🐳 Docker Compose
 
 Il file `docker-compose.yml` orchestra:
 
@@ -272,6 +322,7 @@ Il file `docker-compose.yml` orchestra:
 | Variabile | Descrizione | Default |
 |-----------|-------------|---------|
 | `EXPERIMENT_DURATION` | Durata esperimento (secondi) | 60 |
+| `TARGET_MESSAGES` | Numero di messaggi da generare | 10K |
 | `TOPIC_NAME` | Topic Kafka | test_partitions_3 |
 | `RUN_ID` | ID della run per tracciamento | test_p3 |
 | `PAYLOAD_SIZE_BYTES` | Dimensione payload messaggi | 200 |
