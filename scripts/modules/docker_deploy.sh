@@ -27,34 +27,18 @@ deploy_docker_environment() {
     done
     
     echo ">> Brokers ready, creating topics..."
-    
-    docker exec -it broker_1 kafka-topics \
-      --bootstrap-server broker_1:29092 \
-      --create \
-      --topic test_3_partitions \
-      --partitions 3 --replication-factor 3 \
-      2>&1 | grep -q "Created topic" && echo "   ✓ Created topic: test_3_partitions" || echo "   X Topic already exists: test_3_partitions"
-    
-    docker exec -it broker_1 kafka-topics \
-      --bootstrap-server broker_1:29092 \
-      --create \
-      --topic test_6_partitions \
-      --partitions 6 --replication-factor 3 \
-      2>&1 | grep -q "Created topic" && echo "   ✓ Created topic: test_6_partitions" || echo "   X Topic already exists: test_6_partitions"
-    
-    docker exec -it broker_1 kafka-topics \
-      --bootstrap-server broker_1:29092 \
-      --create \
-      --topic test_9_partitions \
-      --partitions 9 --replication-factor 3 \
-      2>&1 | grep -q "Created topic" && echo "   ✓ Created topic: test_9_partitions" || echo "   X Topic already exists: test_9_partitions"
-    
-    docker exec -it broker_1 kafka-topics \
-      --bootstrap-server broker_1:29092 \
-      --create \
-      --topic test_12_partitions \
-      --partitions 12 --replication-factor 3 \
-      2>&1 | grep -q "Created topic" && echo "   ✓ Created topic: test_12_partitions" || echo "   X Topic already exists: test_12_partitions"
+
+    if [[ -n "$TOPIC_NAME" && -n "$PARTITION_COUNT" ]]; then
+        docker exec -it broker_1 kafka-topics \
+          --bootstrap-server broker_1:29092 \
+          --create \
+          --topic "$TOPIC_NAME" \
+          --partitions "$PARTITION_COUNT" \
+          --replication-factor 3 \
+          2>&1 | grep -q "Created topic" && echo "   ✓ Created topic: $TOPIC_NAME" || echo "   X Topic already exists: $TOPIC_NAME"
+    else
+        echo "   !!! Warning: TOPIC_NAME or PARTITION_COUNT not set, skipping topic creation !!!"
+    fi
     
     echo ">> Starting message generator service..."
     docker compose up -d message_generator > /dev/null 2>&1

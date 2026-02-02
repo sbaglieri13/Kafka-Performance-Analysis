@@ -15,8 +15,9 @@ STATS_DIR="./data/stats"
 
 echo "=========================================="
 echo "Network Bandwidth Evaluation Experiment"
-echo "Partitions to test: ${PARTITION_COUNTS[*]}"
-echo "Batch sizes: ${BATCH_SIZES[*]}"
+echo "Configuration:"
+echo "  - Partitions to test: ${PARTITION_COUNTS[*]}"
+echo "  - Batch sizes: ${BATCH_SIZES[*]}"
 echo "=========================================="
 
 # Build delle immagini Docker

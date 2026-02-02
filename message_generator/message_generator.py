@@ -3,6 +3,7 @@ import time
 import itertools
 from fastapi import FastAPI
 from pydantic import BaseModel
+import random, string
 
 app = FastAPI()
 
@@ -13,12 +14,10 @@ PAYLOAD_SIZE_BYTES = int(os.getenv("PAYLOAD_SIZE_BYTES"))
 key_counter = itertools.count(start=1)
 
 
+import random, string
 def make_message_string() -> str:
-    base = "xxxx"
-    padding_len = max(PAYLOAD_SIZE_BYTES - len(base), 0)
-    s = base + ("x" * padding_len)
-    return s[:PAYLOAD_SIZE_BYTES]
-
+    # genera una stringa casuale di lettere minuscole della lunghezza specificata
+    return ''.join(random.choices(string.ascii_lowercase, k=PAYLOAD_SIZE_BYTES))
 
 class Message(BaseModel):
     key: str

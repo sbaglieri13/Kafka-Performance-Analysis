@@ -47,7 +47,7 @@ deploy_docker_environment
 # Step 6: Run experiment 
 if [[ "$EXPERIMENT_MODE" == "1" ]]; then
     # Time-based
-    TOTAL_EXPERIMENT_TIME=$((EXPERIMENT_DURATION + 60)) # Extra 60 seconds buffer
+    TOTAL_EXPERIMENT_TIME=$((EXPERIMENT_DURATION)) 
     experiment_timer $TOTAL_EXPERIMENT_TIME
 else
     # Message-based
@@ -81,4 +81,4 @@ else
     fi
 fi
 
-python scripts/update_stats_with_jmx.py "$RUN_ID" "$TOPIC_NAME" > /dev/null 2>&1
+python scripts/update_stats_with_jmx.py "$RUN_ID" "$TOPIC_NAME"

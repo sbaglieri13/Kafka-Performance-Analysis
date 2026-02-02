@@ -6,7 +6,7 @@
 experiment_timer() {
     local total_duration=$1
     local warmup_duration=60  # Producer warmup time
-    local experiment_duration=$((total_duration - warmup_duration))
+    local experiment_duration=$((total_duration + warmup_duration))
     
     echo ""
     echo "============================================="

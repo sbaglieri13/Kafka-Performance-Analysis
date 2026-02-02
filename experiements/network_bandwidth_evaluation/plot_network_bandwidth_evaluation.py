@@ -8,6 +8,8 @@ def main():
     stats_dir = Path(__file__).parent.parent.parent / "data/stats"
     partition_counts = [3, 6, 9, 12]
     fig, axes = plt.subplots(1, 4, figsize=(20, 5), sharey=False)
+    
+    fig.suptitle('Network Bandwidth Evaluation: Throughput vs Overhead', fontsize=12, fontweight='bold')
 
     for idx, partition_count in enumerate(partition_counts):
         ax1 = axes[idx]
@@ -28,7 +30,9 @@ def main():
         for file_path in stats_files:
             with open(file_path) as f:
                 data = json.load(f)
-                batch_size = data['batch_size']
+                batch_size = data['experiment_config']['nb_messages_per_batch']
+                throughput = data['kafka_metrics']['throughput_kbps']
+                overhead = data['kafka_metrics']['overhead_percentage']
                 
                 if batch_size not in data_by_batch:
                     data_by_batch[batch_size] = {
@@ -36,8 +40,8 @@ def main():
                         'overhead_percentage': []
                     }
 
-                data_by_batch[batch_size]['throughput_kbps'].append(data['throughput_kbps'])
-                data_by_batch[batch_size]['overhead_percentage'].append(data['overhead_percentage'])
+                data_by_batch[batch_size]['throughput_kbps'].append(throughput)
+                data_by_batch[batch_size]['overhead_percentage'].append(overhead)
 
         
         # Calcola throughput e overhead medi per batch size
@@ -124,6 +128,7 @@ def main():
     plt.subplots_adjust(bottom=0.18, wspace=0.3)  # wspace = spazio tra subplot
     
     plots_dir = Path(__file__).parent / "plots"
+    plots_dir.mkdir(parents=True, exist_ok=True)
     plt.savefig(plots_dir / "network_bandwidth_evaluation.png", dpi=300, bbox_inches='tight')
     
     print(f"\n✓ Plot saved!")
