@@ -125,8 +125,8 @@ Ognuno di questi componenti è stato implementato come servizio Docker indipende
 
 Prima di iniziare, assicurati di avere installato:
 
-- **Docker** (versione 20.10+) e **Docker Compose** (v2.0+)
-- **Python** (versione 3.8+)
+- **Docker** e **Docker Compose**
+- **Python** 
 - **Git** (per clonare il repository)
 
 ### Preparazione Ambiente Python
@@ -171,7 +171,7 @@ Parametri richiesti:
 Questo script:
 - Configura le regole di emulazione di rete (delay, packet loss)
 - Imposta la durata dell'esperimento o il target dei messaggi da generare 
-- Regola payload size, numero di messaggi per batch, ...
+- Regola payload size, numero di messaggi per batch, ecc.
 - Effettua il build delle immagini Docker
 - Avvia tutti i servizi
 
@@ -195,9 +195,8 @@ python ./experiments/latency_analysis/latency_analysis.py
 ```
 
 **Metriche calcolate:**
-$$
-\text{Latency} = \text{receive\_timestamp\_ms} - \text{producer\_send\_timestamp\_ms}
-$$
+**Latency** = `receive_timestamp_ms - producer_send_timestamp_ms`
+
 
 **Output:** `reports/latency_report.json`
 
@@ -220,33 +219,19 @@ python ./experiments/network_bandwidth_evaluation/plot_network_bandwidth_evaluat
 
 **Metriche calcolate:**
   1. Kafka Total Bytes (JMX):
-  $$
-  \text{kafka\_total\_bytes} = \text{BytesInPerSec}
-  $$
+  **kafka_total_bytes** = `BytesInPerSec`
   2. Kafka Overhead:
-  $$
-  \text{kafka\_overhead\_bytes} = \text{kafka\_total\_bytes} - \text{payload\_bytes}
-  $$
+  **kafka_overhead_bytes** = `kafka_total_bytes - payload_bytes`
   3. Overhead Percentage:
-  $$
-  \text{overhead\_\%} =
-  \frac{\text{kafka\_overhead\_bytes}}{\text{kafka\_total\_bytes}} \times 100
-  $$
+  **overhead_%** = `(kafka_overhead_bytes / kafka_total_bytes) * 100`
   4. Throughput:
-  $$
-  \text{throughput}_{\text{kbps}} =
-  \frac{\text{kafka\_total\_bytes} / 1024}{\text{transmission\_time\_seconds}}
-  $$
+  **throughput_kbps** = `(kafka_total_bytes / 1024) / transmission_time_seconds`
 
 **Modelli di fitting:**
   - Throughput (saturazione esponenziale):
-  $$
-  T(x) = c - a \cdot e^{-bx}
-  $$
+  **T(x)** = `c - a · e^(-b x)`
   - Overhead (decadimento esponenziale):
-  $$
-  O(x) = a \cdot e^{-bx} + c
-  $$
+  **O(x)** = `a · e^(-b x) + c`
 
 **Output:**
 Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
@@ -277,36 +262,26 @@ python ./experiments/correlation_analysis/plot_correlation_analysis.py
 
 1. **Serialized Message Size (Sm):**
    
-   $$
-   S_m = \operatorname{len}(\text{key\_bytes}) + \operatorname{len}(\text{value\_bytes})
-   $$
+   **Sm** = `len(key_bytes) + len(value_bytes)`
 
 2. **Serialized Batch Size (Sb):**
    
-   $$
-   S_b =
-   \frac{S_m \times N_b + \text{batch\_header\_size}}
-   {\text{compression\_ratio}}
-   $$
+   **Sb** = `(Sm * Nb + batch_header_size) / compression_ratio`
 
    **Dove:**
-   - `N_b` = numero messaggi per batch  
+   - `Nb` = numero messaggi per batch  
    - `batch_header_size` = 61 bytes (Kafka protocol)  
    - `compression_ratio` = 1.0 (no compression)
 
 3. **Group Send Interval (Gs):**
    
-   $$
-   G_s = \text{timestamp\_current\_group} - \text{timestamp\_previous\_group}
-   $$
+   **Gs** = `timestamp_current_group - timestamp_previous_group`
 
    Un *gruppo* consiste di \( P \) batch consecutivi (dove \( P \) = partizioni per broker).
 
 4. **Request Size (Sr):**
    
-   $$
-   S_r = S_b \times P + \text{packet\_header\_size}
-   $$
+   **Sr** = `Sb * P + packet_header_size`
 
    **Dove:**
    - `P` = numero di partizioni gestite da un broker  
@@ -314,11 +289,7 @@ python ./experiments/correlation_analysis/plot_correlation_analysis.py
 
 5. **Packet Header Size:**
    
-   $$
-   \text{packet\_header\_size} =
-   \frac{\text{kafka\_total\_bytes} - \sum (S_b \times \text{num\_batches})}
-   {\text{total\_batches}}
-   $$
+   **packet_header_size** = `(kafka_total_bytes - sum(Sb * num_batches)) / total_batches`
 
    Dove `kafka_total_bytes` è raccolto via JMX (`BytesInPerSec`).
 
@@ -332,9 +303,7 @@ Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
   - Asse Y: Packet Send Interval (ms)
   - Asse X: Packet Size (KB)  
   - Fit lineare: 
-    $$
-    G_s = a \times S_r + b
-    $$
+    **Gs** = `a * Sr + b`
   - R² score per valutare la correlazione
 
 
@@ -432,7 +401,7 @@ Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
       }
     },
     
-    "broker_tracking_summary": {
+    "broker_trackinGsummary": {
       "1": {
         "batch_count": 523,
         "partition_count": 1
@@ -450,10 +419,10 @@ Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
     "batch_metrics": {
       "Nb": 10,
       "P": 1,
-      "Sm_mean_bytes": 419.48,
-      "Sb_mean_bytes": 4255.76,
-      "Gs_mean_ms": 33.36,
-      "Sr_mean_bytes": 4358.83
+      "Sm_meaNbytes": 419.48,
+      "Sb_meaNbytes": 4255.76,
+      "GSmean_ms": 33.36,
+      "Sr_meaNbytes": 4358.83
     }
   }
   ```
@@ -476,14 +445,14 @@ Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
   |                         | `batch_header_size_bytes`   | Dimensione fissa dell'header del batch Kafka                           						|
   |                         | `compression_ratio`         | Rapporto compressione (1.0 = no compression)               									|
   |                         | `partition_to_broker`       | Mapping partizione → broker leader                         									|
-  | `broker_tracking_summary` | `batch_count`               | Numero batch ricevuti dal broker                           									|
+  | `broker_trackinGsummary` | `batch_count`               | Numero batch ricevuti dal broker                           									|
   |                         | `partition_count`           | Numero partizioni gestite dal broker                       									|
   | `batch_metrics`           | `Nb`                        | Numero messaggi per batch                                  									|
   |                         | `P`                         | Numero partizioni leader per broker                               							|
-  |                         | `Sm_mean_bytes`             | Dimensione media messaggio serializzato (key + value JSON)  									|
-  |                         | `Sb_mean_bytes`             | Dimensione media batch serializzato      														|
-  |                         | `Gs_mean_ms`                | Intervallo medio tra invii di gruppi completi di batch (ogni P batch)     					|
-  |                         | `Sr_mean_bytes`             | Dimensione media pacchetto di rete (batch + header TCP/IP)        							|
+  |                         | `Sm_meaNbytes`             | Dimensione media messaggio serializzato (key + value JSON)  									|
+  |                         | `Sb_meaNbytes`             | Dimensione media batch serializzato      														|
+  |                         | `GSmean_ms`                | Intervallo medio tra invii di gruppi completi di batch (ogni P batch)     					|
+  |                         | `Sr_meaNbytes`             | Dimensione media pacchetto di rete (batch + header TCP/IP)        							|
 
 - **`experiments/latency_analysis/reports/latency_report.json`**: Latency Report
   ```json
@@ -537,7 +506,7 @@ Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
 
 - **`experiments/correlation_analysis/plots/correlation_analysis.png`**: 
 
-  ![Correlation Analysis](.\experiements\correlation_analysis\plots\correlation_analysis.png)
+  ![Correlation Analysis](./experiements/correlation_analysis/plots/correlation_analysis.png)
 
 
 ## 🐳 Docker Compose
@@ -586,9 +555,7 @@ Nel grafico **correlation analysis** si osserva che, a parità di configurazione
 
 Tuttavia, l'aumento del tempo non è proporzionale (non raddoppia esattamente raddoppiando la dimensione del pacchetto), ma segue bene una **regressione quasi lineare** del tipo:
 
-$$
-G_s \approx a \cdot S_r + b
-$$
+**Gs** ≈ `a * Sr + b`
 
 dove:
 - Il termine costante **(b)** rappresenta il **costo fisso per richiesta** (overhead di protocollo, scheduling, ecc.)
@@ -616,9 +583,7 @@ Nel grafico **network bandwidth evaluation**, fissato un numero di partizioni, i
 
 Il throughput cresce secondo un modello di **saturazione esponenziale**:
 
-$$
-T(x) = c - a \cdot e^{-b x}
-$$
+**T(x)** = `c - a * e^(-b x)`
 
 dove:
 - **x** è il batch size **(Nb)**
@@ -626,7 +591,7 @@ dove:
 - **a** e **b** caratterizzano la velocità di saturazione
 
 **Fase iniziale (batch piccoli):**  
-Il termine esponenziale $$e^{-bx}$$ è grande → throughput basso.
+Il termine esponenziale `e^(-b x)` è grande → throughput basso.
 
 **Fase di saturazione (batch grandi):**  
 Il termine esponenziale tende a 0 → throughput si avvicina a **c**.
@@ -635,9 +600,7 @@ Il termine esponenziale tende a 0 → throughput si avvicina a **c**.
 
 Per quanto riguarda l'**overhead percentuale**, la curva mostra un **decadimento esponenziale**:
 
-$$
-O(x) = a \cdot e^{-b x} + c
-$$
+**O(x)** = `a * e^(-b x) + c`
 
 La **stabilizzazione** dell'overhead a valori bassi riflette il fatto che, aumentando ulteriormente il batch size, la struttura del protocollo Kafka non cambia.
 
