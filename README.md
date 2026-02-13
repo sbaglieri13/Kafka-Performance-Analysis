@@ -401,7 +401,7 @@ Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
       }
     },
     
-    "broker_trackinGsummary": {
+    "broker_tracking_summary": {
       "1": {
         "batch_count": 523,
         "partition_count": 1
@@ -419,10 +419,10 @@ Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
     "batch_metrics": {
       "Nb": 10,
       "P": 1,
-      "Sm_meaNbytes": 419.48,
-      "Sb_meaNbytes": 4255.76,
-      "GSmean_ms": 33.36,
-      "Sr_meaNbytes": 4358.83
+      "Sm_mean_bytes": 419.48,
+      "Sb_mean_bytes": 4255.76,
+      "Gs_mean_ms": 33.36,
+      "Sr_mean_bytes": 4358.83
     }
   }
   ```
@@ -445,14 +445,14 @@ Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
   |                         | `batch_header_size_bytes`   | Dimensione fissa dell'header del batch Kafka                           						|
   |                         | `compression_ratio`         | Rapporto compressione (1.0 = no compression)               									|
   |                         | `partition_to_broker`       | Mapping partizione → broker leader                         									|
-  | `broker_trackinGsummary` | `batch_count`               | Numero batch ricevuti dal broker                           									|
+  | `broker_tracking_summary` | `batch_count`               | Numero batch ricevuti dal broker                           									|
   |                         | `partition_count`           | Numero partizioni gestite dal broker                       									|
   | `batch_metrics`           | `Nb`                        | Numero messaggi per batch                                  									|
   |                         | `P`                         | Numero partizioni leader per broker                               							|
-  |                         | `Sm_meaNbytes`             | Dimensione media messaggio serializzato (key + value JSON)  									|
-  |                         | `Sb_meaNbytes`             | Dimensione media batch serializzato      														|
-  |                         | `GSmean_ms`                | Intervallo medio tra invii di gruppi completi di batch (ogni P batch)     					|
-  |                         | `Sr_meaNbytes`             | Dimensione media pacchetto di rete (batch + header TCP/IP)        							|
+  |                         | `Sm_mean_bytes`             | Dimensione media messaggio serializzato (key + value JSON)  									|
+  |                         | `Sb_mean_bytes`             | Dimensione media batch serializzato      														|
+  |                         | `Gs_mean_ms`                | Intervallo medio tra invii di gruppi completi di batch (ogni P batch)     					|
+  |                         | `Sr_mean_bytes`             | Dimensione media pacchetto di rete (batch + header TCP/IP)        							|
 
 - **`experiments/latency_analysis/reports/latency_report.json`**: Latency Report
   ```json
