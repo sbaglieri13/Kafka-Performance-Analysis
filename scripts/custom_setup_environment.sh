@@ -64,7 +64,7 @@ else
         if ls ./data/stats/*_stats.json 1> /dev/null 2>&1; then
             echo ""
             echo ">> Waiting consumers..."
-            sleep 30  # Attende che i consumer completino l'elaborazione
+            sleep 45  # Attende che i consumer completino l'elaborazione
             echo "✓ Done!"
             break
         fi

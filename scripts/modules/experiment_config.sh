@@ -88,6 +88,21 @@ configure_experiment_parameters() {
     NB_MESSAGES_PER_BATCH=${NB_MESSAGES_PER_BATCH:-50}
     echo ">> Batch size: ${NB_MESSAGES_PER_BATCH} messages"
     echo ""
+
+    echo "Poisson Arrival Rate Configuration"
+    echo "Select lambda rate (messages/second):"
+    echo "  1) Low    (10  msg/s  ~100ms inter-arrival)"
+    echo "  2) Medium (50  msg/s  ~20ms  inter-arrival)  [default]"
+    echo "  3) High   (200 msg/s  ~5ms   inter-arrival)"
+    read -rp "Choice [default: Medium]: " lambda_choice
+    case "${lambda_choice:-2}" in
+        1) LAMBDA_RATE=10  ;;
+        2) LAMBDA_RATE=50  ;;
+        3) LAMBDA_RATE=200 ;;
+        *) LAMBDA_RATE=50  ;;
+    esac
+    echo ">> LAMBDA_RATE=${LAMBDA_RATE} msg/s"
+    echo ""
     
     # Componi RUN_ID
     RUN_ID="${TOPIC_NAME}_NB_${NB_MESSAGES_PER_BATCH}_PS_${PAYLOAD_SIZE_BYTES}"
@@ -100,6 +115,7 @@ configure_experiment_parameters() {
     export RUN_ID
     export PAYLOAD_SIZE_BYTES
     export NB_MESSAGES_PER_BATCH
+    export LAMBDA_RATE
     
     echo "============================================="
     echo "Configuration Summary"
@@ -108,6 +124,7 @@ configure_experiment_parameters() {
     echo "Partitions: $PARTITION_COUNT"
     echo "Payload size: $PAYLOAD_SIZE_BYTES bytes"
     echo "Batch size: $NB_MESSAGES_PER_BATCH messages"
+    echo "Lambda rate: $LAMBDA_RATE msg/s"
     echo "Run ID: $RUN_ID"
 
     if [[ "${EXPERIMENT_MODE:-1}" == "1" ]]; then

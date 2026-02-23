@@ -23,7 +23,7 @@ echo "=========================================="
 # Build delle immagini Docker
 echo ""
 echo ">> Building Docker images..."
-docker compose build --quiet broker_1 broker_2 broker_3 producer_1 producer_2 consumer_1_g1 consumer_2_g1 consumer_1_g2 message_generator network_emulator kafka_ui > /dev/null 2>&1
+docker compose build --quiet broker_1 broker_2 broker_3 producer_1 producer_2 consumer_1_g1 consumer_2_g1 consumer_1_g2 network_emulator kafka_ui > /dev/null 2>&1
 echo ">> Build completed!"
 
 for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
@@ -48,6 +48,7 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
         export NB_MESSAGES_PER_BATCH="${BATCH_SIZE}"
         export TARGET_MESSAGES
         export EXPERIMENT_DURATION=999999999  # Tempo infinito per modalità message-based
+        export LAMBDA_RATE=200 #TODO rendere variabile per test
         
         docker compose down > /dev/null 2>&1 || true
         sleep 2

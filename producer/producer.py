@@ -1,15 +1,15 @@
+import math
 import os
 import time
 import json
 import socket
+import itertools
+import random
+import string
 from pathlib import Path
-import requests
 from confluent_kafka import Producer, Consumer
-from typing import Dict, Set
+from typing import Dict
 import numpy as np
-
-
-MESSAGE_GENERATOR_URL = os.getenv("MESSAGE_GENERATOR_URL")
 
 bootstrap = os.getenv("BOOTSTRAP_SERVERS")
 topic = os.getenv("TOPIC_NAME")
@@ -18,14 +18,30 @@ payload_size_bytes = int(os.getenv("PAYLOAD_SIZE_BYTES"))
 nb_messages_per_batch = int(os.getenv("NB_MESSAGES_PER_BATCH"))
 producer_name = os.getenv("CONTAINER_NAME", socket.gethostname())
 partition_count = int(os.getenv("PARTITION_COUNT"))
+lambda_rate = float(os.getenv("LAMBDA_RATE", "50.0"))  # msg/s, default Medium
 
 BATCH_HEADER_SIZE = 61  # bytes, formato Kafka fisso
 COMPRESSION_RATIO = 1.0  # nessuna compressione
 
+key_counter = itertools.count(start=1) # contatore per generare chiavi uniche incrementali
+def make_message() -> dict:
+    """Genera payload e chiave incrementale"""
+    key     = str(next(key_counter)) # chiave incrementale unica per ogni messaggio
+    message = ''.join(random.choices(string.ascii_lowercase, k=payload_size_bytes)) # payload casuale di lettere minuscole della lunghezza specificata
+    return {"key": key, "message": message}
+
+# Funzione per simulare arrivi Poisson
+def poisson_sleep():
+    """Attende un intervallo esponenziale con media 1/lambda_rate secondio per simulare un processo di arrivo Poisson"""
+    interval = np.random.exponential(1.0 / lambda_rate)
+    time.sleep(interval)
+    
+linger_ms = 30000 # per non inviare batch incompleti troppo presto, ma lasciare tempo sufficiente per completare i batch anche a lambda alti
+
 current_batch_id = 0  # serve per tracciare l'ID del batch corrente cosi da testare se effettivamente in un batch ci sono i messaggi attesi
-messages_in_current_batch = 0
-delivery_records = []
-batch_tracking_data = []
+messages_in_current_batch = 0 # serve per contare quanti messaggi sono stati inviati nel batch corrente, cosi da sapere quando incrementare l'ID del batch
+delivery_records = [] 
+batch_tracking_data = [] 
 
 # Tracking per batch+broker (per gestire N partizioni su M broker)
 batch_broker_first_delivery = {}  # Traccia il primo delivery per ogni batch+broker
@@ -101,7 +117,6 @@ def estimate_message_size() -> int:
         "topic": topic,
         "message": "x" * payload_size_bytes,
         "send_timestamp_ms": 0.0,
-        "write_timestamp_ms": None,
         "status": "PENDING",
         "send_batch_id": 0,
     }
@@ -110,34 +125,17 @@ def estimate_message_size() -> int:
 
 
 estimated_msg_size = estimate_message_size()
-batch_size_bytes = int(estimated_msg_size * nb_messages_per_batch * 1.2) # margine del 20% per sicurezza
+messages_per_partition = math.ceil(nb_messages_per_batch / partition_count) # numero di messaggi per partizione in ogni batch (arrotondato per eccesso)
+batch_size_bytes = int(estimated_msg_size * messages_per_partition * 1.1) # margine del 10% per sicurezza
 
 producer_conf = {
-    "bootstrap.servers": bootstrap,
-    "linger.ms": 100,  # imposto linger.ms a 100 ms per testare meglio il batching ed essere sicuro che venga riempito il batch
-    "batch.size": batch_size_bytes,
-    #"enable.idempotence": True,
+    "bootstrap.servers": bootstrap, # indirizzo del cluster Kafka
+    "linger.ms": linger_ms,  # tempo massimo in ms per aspettare prima di inviare un batch incompleto
+    "batch.size": batch_size_bytes, # dimensione massima del batch in byte (calcolata come stima dimensione messaggio * nb_messages_per_batch * margine)
 }
 
 p = Producer(producer_conf)
 send_ts = {}
-
-
-def fetch_generated_message() -> dict:
-    """
-    Chiede un nuovo messaggio al message_generator
-    La risposta attesa è:
-    {
-        "key": "...",
-        "run_id": "...",
-        "message": "...",
-        "generator_timestamp_ms": ...
-    }
-    """
-    resp = requests.get(MESSAGE_GENERATOR_URL, timeout=5)
-    resp.raise_for_status()
-    return resp.json()
-
 
 def delivery_report(err, msg):
     """
@@ -151,13 +149,11 @@ def delivery_report(err, msg):
     - message
     - message_size_bytes
     - send_timestamp_ms
-    - write_timestamp_ms
     - status
     - send_batch_id
     """
     msg_key = msg.key().decode("utf-8")
     send_timestamp = send_ts.pop(msg_key, None)
-    write_timestamp = time.time_ns() / 1_000_000  # converto in millisecondi
     status = "OK" if err is None else f"ERROR:{err}"
 
     full_payload_bytes = msg.value()  # bytes
@@ -184,7 +180,6 @@ def delivery_report(err, msg):
         "message": message_text,
         "message_size_bytes": message_size,
         "send_timestamp_ms": send_timestamp,
-        "write_timestamp_ms": write_timestamp,
         "status": status,
         "send_batch_id": send_batch_id,
     }
@@ -197,8 +192,9 @@ def delivery_report(err, msg):
         
         # Se è il primo messaggio di questo batch verso questo broker
         if batch_broker_key not in batch_broker_first_delivery:
+            time_ms = time.time_ns() / 1_000_000
             batch_broker_first_delivery[batch_broker_key] = {
-                'timestamp_ms': write_timestamp,
+                'timestamp_ms': time_ms,  # timestamp del primo delivery in ms
                 'partition': partition,
                 'message_size': message_size,
                 'batch_id': send_batch_id,
@@ -206,7 +202,7 @@ def delivery_report(err, msg):
             }
             
             # Registra per correlation analysis
-            record_batch_delivery(broker_id, send_batch_id, partition, write_timestamp, message_size)
+            record_batch_delivery(broker_id, send_batch_id, partition, time_ms, message_size)
 
 def record_batch_delivery(broker_id: int, batch_id: int, partition: int, 
                           timestamp_ms: float, message_size: float):
@@ -322,7 +318,9 @@ def write_unified_stats():
         'nb_messages_per_batch': nb_messages_per_batch,
         'batch_header_size_bytes': BATCH_HEADER_SIZE,
         'compression_ratio': COMPRESSION_RATIO,
-        'partition_to_broker': partition_to_broker
+        'partition_to_broker': partition_to_broker,
+        'lambda_rate': lambda_rate,
+        'linger_ms': linger_ms,
     }
     
     # Aggiungi broker_tracking_summary
@@ -358,10 +356,9 @@ def send_message():
     if messages_in_current_batch == 0:
         current_batch_id += 1
 
-    # 1) prendo il messaggio dal generator
-    gen_msg = fetch_generated_message()
+    # 1) genera messaggio
+    gen_msg = make_message()
     key = gen_msg["key"]
-    run_id_from_gen = gen_msg["run_id"]
     message_text = gen_msg["message"]
 
     # 2) timestamp di invio dal punto di vista del producer
@@ -370,11 +367,10 @@ def send_message():
 
     message = {
         "key": key,
-        "run_id": run_id_from_gen,
+        "run_id": run_id,
         "topic": topic,
         "message": message_text,
         "send_timestamp_ms": send_timestamp, # timestamp (in ms) generato dal producer nell'istante esatto in cui il messaggio viene creato e “messo in coda” per l’invio
-        "write_timestamp_ms": None,
         "status": "PENDING",
         "send_batch_id": current_batch_id,
     }
@@ -395,7 +391,9 @@ def send_message():
 def main():
     target_messages = int(os.getenv("TARGET_MESSAGES")) # numero totale di messaggi da inviare
     experiment_duration = int(os.getenv("EXPERIMENT_DURATION")) # durata massima dell'esperimento in secondi
+    
     time.sleep(60)  # attendo che tutti i consumer siano pronti
+    
     transmission_start = time.time()
     end_time = transmission_start + experiment_duration
     
@@ -403,6 +401,7 @@ def main():
         messages_sent = 0
         while (messages_sent < target_messages and time.time() < end_time) or messages_in_current_batch > 0:
             if messages_sent < target_messages and time.time() < end_time:
+                poisson_sleep()  # attende un intervallo casuale per simulare arrivi Poisson
                 send_message()
                 messages_sent += 1
             elif messages_in_current_batch > 0:

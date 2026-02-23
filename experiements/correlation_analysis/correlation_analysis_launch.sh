@@ -50,7 +50,7 @@ echo "=========================================="
 # Build delle immagini Docker
 echo ""
 echo ">> Building Docker images..."
-docker compose build --quiet broker_1 broker_2 broker_3 producer_1 producer_2 consumer_1_g1 consumer_2_g1 consumer_1_g2 message_generator network_emulator kafka_ui > /dev/null 2>&1
+docker compose build --quiet broker_1 broker_2 broker_3 producer_1 producer_2 consumer_1_g1 consumer_2_g1 consumer_1_g2 network_emulator kafka_ui > /dev/null 2>&1
 echo ">> Build completed!"
 
 # loop per ogni combinazione di PARTITION_COUNT e BATCH_SIZE
@@ -81,6 +81,7 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
         export NB_MESSAGES_PER_BATCH="${BATCH_SIZE}"
         export TARGET_MESSAGES=999999999 # Numero elevato per modalità time-based
         export EXPERIMENT_DURATION="${PRODUCTION_DURATION}"
+        export LAMBDA_RATE=200 #TODO rendere variabile per test
         
         docker compose down > /dev/null 2>&1 || true
         sleep 2
@@ -107,12 +108,6 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
         else
             echo "   !!! Warning: TOPIC_NAME or PARTITION_COUNT not set, skipping topic creation !!!"
         fi
-        
-        docker compose up -d message_generator > /dev/null 2>&1
-        
-        until curl -s http://localhost:8000/docs >/dev/null 2>&1; do
-            sleep 1
-        done
         
         docker compose up -d consumer_1_g1 consumer_2_g1 consumer_1_g2 > /dev/null 2>&1
         sleep 10

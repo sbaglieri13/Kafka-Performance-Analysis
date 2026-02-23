@@ -66,7 +66,7 @@ experiment_timer() {
 
     echo ""
     echo ">> Waiting consumers..."
-    sleep 30  # Attende che i consumer completino l'elaborazione
+    sleep 45  # Attende che i consumer completino l'elaborazione
     
     echo ""
     echo "============================================="

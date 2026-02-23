@@ -117,7 +117,7 @@ services:
       RUN_ID: "${RUN_ID}"
       PAYLOAD_SIZE_BYTES: "${PAYLOAD_SIZE_BYTES}"
       NB_MESSAGES_PER_BATCH: "${NB_MESSAGES_PER_BATCH}"
-      MESSAGE_GENERATOR_URL: "http://172.20.50.10:8000/next-message"
+      LAMBDA_RATE: "${LAMBDA_RATE:-50}" 
       EXPERIMENT_DURATION: "${EXPERIMENT_DURATION:-60}"
       TARGET_MESSAGES: "${TARGET_MESSAGES:-10000}"
       CONTAINER_NAME: "producer_1"
@@ -128,8 +128,6 @@ services:
     networks:
       net_producers:
         ipv4_address: 172.20.20.11
-      net_msggen:
-        ipv4_address: 172.20.50.11
 
   producer_2:
     build: ./producer
@@ -146,7 +144,7 @@ services:
       RUN_ID: "${RUN_ID}"
       PAYLOAD_SIZE_BYTES: "${PAYLOAD_SIZE_BYTES}"
       NB_MESSAGES_PER_BATCH: "${NB_MESSAGES_PER_BATCH}"
-      MESSAGE_GENERATOR_URL: "http://172.20.50.10:8000/next-message"
+      LAMBDA_RATE: "${LAMBDA_RATE:-50}" 
       EXPERIMENT_DURATION: "${EXPERIMENT_DURATION:-60}"
       TARGET_MESSAGES: "${TARGET_MESSAGES:-10000}"
       CONTAINER_NAME: "producer_2"
@@ -157,8 +155,6 @@ services:
     networks:
       net_producers:
         ipv4_address: 172.20.20.12
-      net_msggen:
-        ipv4_address: 172.20.50.12
 
   consumer_1_g1:
     build: ./consumer
@@ -232,22 +228,6 @@ services:
       net_consumers_g2:
         ipv4_address: 172.20.40.11
 
-  message_generator:
-    build: ./message_generator
-    container_name: message_generator
-    environment:
-      RUN_ID: "${RUN_ID}"
-      PAYLOAD_SIZE_BYTES: "${PAYLOAD_SIZE_BYTES}"
-    ports:
-      - "8000:8000"
-    depends_on:
-      - broker_1
-      - broker_2
-      - broker_3
-    networks:
-      net_msggen:
-        ipv4_address: 172.20.50.10
-
   network_emulator:
     build: ./network_emulator
     container_name: network_emulator
@@ -290,9 +270,3 @@ networks:
       config:
         - subnet: 172.20.40.0/24
           gateway: 172.20.40.1
-  net_msggen:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.50.0/24
-          gateway: 172.20.50.1

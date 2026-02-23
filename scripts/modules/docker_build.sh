@@ -27,11 +27,11 @@ build_docker_images() {
             if [[ $REPLY =~ ^[Yy]$ ]]; then
                 # Build con log
                 echo ">> Building images (with logs)..."
-                docker compose build broker_1 broker_2 broker_3 producer_1 producer_2 consumer_1_g1 consumer_2_g1 consumer_1_g2 message_generator kafka_ui
+                docker compose build broker_1 broker_2 broker_3 producer_1 producer_2 consumer_1_g1 consumer_2_g1 consumer_1_g2 kafka_ui
             else
                 # Build senza log (quiet)
                 echo ">> Building images (quiet mode)..."
-                docker compose build --quiet broker_1 broker_2 broker_3 producer_1 producer_2 consumer_1_g1 consumer_2_g1 consumer_1_g2 message_generator kafka_ui
+                docker compose build --quiet broker_1 broker_2 broker_3 producer_1 producer_2 consumer_1_g1 consumer_2_g1 consumer_1_g2 kafka_ui
             fi
             echo ">> Build completed!"
             echo ""

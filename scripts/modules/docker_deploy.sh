@@ -40,16 +40,6 @@ deploy_docker_environment() {
         echo "   !!! Warning: TOPIC_NAME or PARTITION_COUNT not set, skipping topic creation !!!"
     fi
     
-    echo ">> Starting message generator service..."
-    docker compose up -d message_generator > /dev/null 2>&1
-    
-    echo ">> Waiting for message generator to be ready..."
-    until curl -s http://localhost:8000/docs >/dev/null 2>&1; do
-        sleep 1
-        echo ">> Message generator not ready yet..."
-    done
-    echo ">> Message generator is ready!"
-    
     echo ">> Starting consumers..."
     docker compose up -d consumer_1_g1 consumer_2_g1 consumer_1_g2 > /dev/null 2>&1
     
