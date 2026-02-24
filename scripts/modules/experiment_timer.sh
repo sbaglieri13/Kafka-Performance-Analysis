@@ -12,7 +12,7 @@ experiment_timer() {
     echo "============================================="
     echo "Experiment Started"
     echo "============================================="
-    echo "Total duration: ${total_duration}s (${warmup_duration}s warmup + ${experiment_duration}s production)"
+    echo "Total duration: ${experiment_duration}s (${warmup_duration}s warmup + ${total_duration}s production)"
     echo ""
     
     local elapsed=0

@@ -7,7 +7,7 @@ cd "$(dirname "$0")/../.."
 source ./scripts/modules/docker_deploy.sh
 
 PARTITION_COUNTS=(3 6 9 12)
-PAYLOAD_SIZE_BYTES=1000
+PAYLOAD_SIZE_BYTES=1000 
 TARGET_MESSAGES=50000
 BATCH_SIZES=(1 2 3 4 5 6 7 8 9 10 12 13 15 16 18 20 21 23 24 26 29 30 32 35 37 40 41 45 49 50)
 
@@ -35,6 +35,7 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
     echo "Topic: ${TOPIC_NAME}"
     echo "Payload: ${PAYLOAD_SIZE_BYTES} bytes"
     echo "Target messages: ${TARGET_MESSAGES}"
+    echo "Send mode: continuous (heavy load)"
     echo "=========================================="
 
     for BATCH_SIZE in "${BATCH_SIZES[@]}"; do
@@ -48,8 +49,9 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
         export NB_MESSAGES_PER_BATCH="${BATCH_SIZE}"
         export TARGET_MESSAGES
         export EXPERIMENT_DURATION=999999999  # Tempo infinito per modalità message-based
-        export LAMBDA_RATE=200 #TODO rendere variabile per test
-        
+        export SEND_MODE=continuous # heavy load continuo, senza rate limit
+        export LAMBDA_RATE=0  # non usato in continuous mode
+
         docker compose down > /dev/null 2>&1 || true
         sleep 2
 

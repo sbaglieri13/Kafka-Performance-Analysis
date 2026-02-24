@@ -3,12 +3,12 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
+source scripts/modules/experiment_timer.sh 
+
 PARTITION_COUNTS=(3 6 9 12)
 PAYLOAD_SIZE_BYTES=1000
 BATCH_SIZES=(10 30 50 70 100 120 150 170 190 210 230 250 280 300)
-WARMUP_DURATION=30
-PRODUCTION_DURATION=60
-CONSUMER_WAIT=30
+EXPERIMENT_DURATION=60
 
 progress_bar() {
     local duration=$1
@@ -44,7 +44,8 @@ echo "Configuration:"
 echo "  - Partition to test: ${PARTITION_COUNTS[*]}"
 echo "  - Batch sizes: ${BATCH_SIZES[*]}"
 echo "  - Payload size: ${PAYLOAD_SIZE_BYTES} bytes"
-echo "  - Production time: ${PRODUCTION_DURATION}s"
+echo "  - Experiment duration: ${EXPERIMENT_DURATION}s"
+echo "  - Send mode: continuous (heavy load)"
 echo "=========================================="
 
 # Build delle immagini Docker
@@ -80,8 +81,9 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
         export PAYLOAD_SIZE_BYTES="${PAYLOAD_SIZE_BYTES}"
         export NB_MESSAGES_PER_BATCH="${BATCH_SIZE}"
         export TARGET_MESSAGES=999999999 # Numero elevato per modalità time-based
-        export EXPERIMENT_DURATION="${PRODUCTION_DURATION}"
-        export LAMBDA_RATE=200 #TODO rendere variabile per test
+        export EXPERIMENT_DURATION="${EXPERIMENT_DURATION}"
+        export SEND_MODE="continuous" # heavy load, senza rate limit
+        export LAMBDA_RATE=0 # non usato in continuous mode
         
         docker compose down > /dev/null 2>&1 || true
         sleep 2
@@ -122,14 +124,7 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
         
         docker compose up -d producer_1 > /dev/null 2>&1
     
-        
-        echo "  Running Experiment..."
-        echo ""
-        progress_bar ${WARMUP_DURATION} "Warmup phase (producers initializing)"
-        progress_bar ${PRODUCTION_DURATION} "Production phase (active message flow)"
-        
-        echo "  Waiting for consumers to finish processing..."
-        sleep ${CONSUMER_WAIT}
+        experiment_timer ${EXPERIMENT_DURATION}
 
         # Aggiorna i file stats 
         echo "  Updating stats with JMX..."

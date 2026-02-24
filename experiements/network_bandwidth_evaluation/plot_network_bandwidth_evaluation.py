@@ -31,16 +31,16 @@ def main():
             with open(file_path) as f:
                 data = json.load(f)
                 batch_size = data['experiment_config']['nb_messages_per_batch']
-                throughput = data['kafka_metrics']['throughput_kbps']
+                throughput = data['kafka_metrics']['throughput_mbps']
                 overhead = data['kafka_metrics']['overhead_percentage']
                 
                 if batch_size not in data_by_batch:
                     data_by_batch[batch_size] = {
-                        'throughput_kbps': [],
+                        'throughput_mbps': [],
                         'overhead_percentage': []
                     }
 
-                data_by_batch[batch_size]['throughput_kbps'].append(throughput)
+                data_by_batch[batch_size]['throughput_mbps'].append(throughput)
                 data_by_batch[batch_size]['overhead_percentage'].append(overhead)
 
         
@@ -53,8 +53,8 @@ def main():
         for batch_size in sorted(data_by_batch.keys()):
             stats = data_by_batch[batch_size]
             
-            # Throughput medio in KB/s
-            throughput = sum(stats['throughput_kbps']) / len(stats['throughput_kbps'])
+            # Throughput medio in MB/s
+            throughput = sum(stats['throughput_mbps']) / len(stats['throughput_mbps'])
             
             # Overhead medio in %
             overhead = sum(stats['overhead_percentage']) / len(stats['overhead_percentage'])
@@ -63,7 +63,7 @@ def main():
             throughputs.append(throughput)
             overheads.append(overhead)
             
-            print(f"  Batch {batch_size}: throughput {throughput:.1f} KB/s, overhead {overhead:.1f}%")
+            print(f"  Batch {batch_size}: throughput {throughput:.1f} MB/s, overhead {overhead:.1f}%")
         
         batch_sizes = np.array(batch_sizes)
         throughputs = np.array(throughputs)
@@ -92,7 +92,7 @@ def main():
         ax1.set_xlabel('Number of Messages per Batch', fontsize=12)
         
         # Asse Y sinistro: Throughput
-        ax1.set_ylabel('Throughput of Packets (KB/s)', fontsize=12, color='blue')
+        ax1.set_ylabel('Throughput of Packets (MB/s)', fontsize=12, color='blue')
         
         # Throughput prediction
         ax1.plot(batch_smooth, throughput_theory, '-', color='blue', linewidth=1.5, alpha=0.3, zorder=1, label='Throughput prediction')

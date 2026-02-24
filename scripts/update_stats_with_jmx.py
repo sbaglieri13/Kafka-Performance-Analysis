@@ -114,7 +114,7 @@ def update_producer_stats(run_id, topic_name):
     kafka_overhead_bytes = total_bytes_from_brokers - total_payload_bytes
     kafka_total_bytes = total_bytes_from_brokers
     overhead_percentage = (kafka_overhead_bytes / kafka_total_bytes * 100) if kafka_total_bytes > 0 else 0
-    throughput_kbps = (kafka_total_bytes / 1024) / total_transmission_time if total_transmission_time > 0 else 0
+    throughput_mbps = (kafka_total_bytes / (1024 * 1024)) / total_transmission_time if total_transmission_time > 0 else 0
     
     # Calcola packet header size
     packet_header_size = calculate_packet_header_size(stats_data, kafka_total_bytes)
@@ -122,12 +122,14 @@ def update_producer_stats(run_id, topic_name):
     # Aggiorna ogni file producer stats
     for pf in producer_files:
         try:
-            with open(pf, 'r') as f:
+            pf = Path(pf)
+            temp_path = pf.with_suffix(pf.suffix + ".tmp")
+            with pf.open('r') as f:
                 data = json.load(f)
             
             data['kafka_metrics']['kafka_overhead_bytes'] = kafka_overhead_bytes
             data['kafka_metrics']['kafka_total_bytes'] = kafka_total_bytes
-            data['kafka_metrics']['throughput_kbps'] = round(throughput_kbps, 2)
+            data['kafka_metrics']['throughput_mbps'] = round(throughput_mbps, 2)
             data['kafka_metrics']['overhead_percentage'] = round(overhead_percentage, 2)
             data['kafka_metrics']['packet_header_size_bytes'] = packet_header_size
             
@@ -140,8 +142,9 @@ def update_producer_stats(run_id, topic_name):
                     Sr_mean = (Sb_mean * P) + packet_header_size
                     batch_metrics['Sr_mean_bytes'] = round(Sr_mean, 2)
             
-            with open(pf, 'w') as f:
+            with temp_path.open('w') as f:
                 json.dump(data, f, indent=2)
+            temp_path.replace(pf)
                 
         except Exception:
             print("Errore nell'aggiornamento del file:", pf)

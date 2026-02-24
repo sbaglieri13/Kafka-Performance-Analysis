@@ -12,7 +12,7 @@ run_id = os.getenv("RUN_ID")
 group_id = os.getenv("GROUP_ID")
 container_name = os.getenv("CONTAINER_NAME", socket.gethostname())
 
-data_dir = Path("/app/data")
+data_dir = Path("./data")
 data_dir.mkdir(parents=True, exist_ok=True)
 
 # <CONTAINER_NAME>_<RUN_ID>_messages.jsonl

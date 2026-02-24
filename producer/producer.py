@@ -18,7 +18,8 @@ payload_size_bytes = int(os.getenv("PAYLOAD_SIZE_BYTES"))
 nb_messages_per_batch = int(os.getenv("NB_MESSAGES_PER_BATCH"))
 producer_name = os.getenv("CONTAINER_NAME", socket.gethostname())
 partition_count = int(os.getenv("PARTITION_COUNT"))
-lambda_rate = float(os.getenv("LAMBDA_RATE", "50.0"))  # msg/s, default Medium
+lambda_rate = float(os.getenv("LAMBDA_RATE"))
+send_mode = os.getenv("SEND_MODE") 
 
 BATCH_HEADER_SIZE = 61  # bytes, formato Kafka fisso
 COMPRESSION_RATIO = 1.0  # nessuna compressione
@@ -50,10 +51,10 @@ batch_broker_first_delivery = {}  # Traccia il primo delivery per ogni batch+bro
 last_global_send_per_broker = {}  # {broker_id: timestamp_ms}
 batches_sent_since_last_record = {}  # {broker_id: counter}
 
-data_dir = Path("/app/data")
+data_dir = Path("./data")
 data_dir.mkdir(parents=True, exist_ok=True)
 
-stats_dir = Path("/app/data/stats")
+stats_dir = Path("./data/stats")
 stats_dir.mkdir(parents=True, exist_ok=True)
 
 # File per salvare i record dei messaggi inviati
@@ -125,8 +126,7 @@ def estimate_message_size() -> int:
 
 
 estimated_msg_size = estimate_message_size()
-messages_per_partition = math.ceil(nb_messages_per_batch / partition_count) # numero di messaggi per partizione in ogni batch (arrotondato per eccesso)
-batch_size_bytes = int(estimated_msg_size * messages_per_partition * 1.1) # margine del 10% per sicurezza
+batch_size_bytes = int(estimated_msg_size * nb_messages_per_batch * 1.2) # margine del 20% per sicurezza
 
 producer_conf = {
     "bootstrap.servers": bootstrap, # indirizzo del cluster Kafka
@@ -401,7 +401,8 @@ def main():
         messages_sent = 0
         while (messages_sent < target_messages and time.time() < end_time) or messages_in_current_batch > 0:
             if messages_sent < target_messages and time.time() < end_time:
-                poisson_sleep()  # attende un intervallo casuale per simulare arrivi Poisson
+                if send_mode == "poisson": # se siamo in modalità poisson
+                    poisson_sleep()  # attende un intervallo casuale per simulare arrivi Poisson
                 send_message()
                 messages_sent += 1
             elif messages_in_current_batch > 0:
@@ -430,7 +431,7 @@ def main():
         
         total_time = transmission_end - transmission_start
         num_messages = len(delivery_records)
-        total_payload_bytes = sum(r['message_size_bytes'] for r in delivery_records)
+        total_payload_bytes = num_messages * payload_size_bytes
         unique_batches = len(set(r['send_batch_id'] for r in delivery_records))
         
         stats = {
@@ -448,7 +449,7 @@ def main():
             "kafka_metrics": {  
                 "kafka_overhead_bytes": None,
                 "kafka_total_bytes": None,
-                "throughput_kbps": None,
+                "throughput_mbps": None,
                 "overhead_percentage": None,
                 "packet_header_size_bytes": None
             }

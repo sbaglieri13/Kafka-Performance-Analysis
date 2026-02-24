@@ -120,6 +120,7 @@ services:
       LAMBDA_RATE: "${LAMBDA_RATE:-50}" 
       EXPERIMENT_DURATION: "${EXPERIMENT_DURATION:-60}"
       TARGET_MESSAGES: "${TARGET_MESSAGES:-10000}"
+      SEND_MODE: ${SEND_MODE:-poisson}
       CONTAINER_NAME: "producer_1"
     volumes:
       - ./data:/app/data
@@ -147,6 +148,7 @@ services:
       LAMBDA_RATE: "${LAMBDA_RATE:-50}" 
       EXPERIMENT_DURATION: "${EXPERIMENT_DURATION:-60}"
       TARGET_MESSAGES: "${TARGET_MESSAGES:-10000}"
+      SEND_MODE: ${SEND_MODE:-poisson}
       CONTAINER_NAME: "producer_2"
     volumes:
       - ./data:/app/data
