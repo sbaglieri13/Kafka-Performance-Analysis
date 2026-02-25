@@ -3,71 +3,103 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.optimize import curve_fit
+import sys
+from collections import defaultdict
+from typing import Dict, List, Tuple
+from matplotlib.lines import Line2D
+
+sys.path.append(str(Path(__file__).parent.parent.parent))
+from utilities.tukey_iqr import tukey_iqr_filter
+from utilities.confidence_interval import compute_ci
+
+
+def load_bandwidth_data() -> Tuple[Dict[int, List[Dict]]]: 
+    """
+    Carica i file stats, raggruppa per (partition_count, batch_size),
+    applica IQR su throughput e overhead, poi IC al 95%.
+    Restituisce per ogni partition_count una lista di dict con:
+        - batch_size (int)
+        - throughput (float): throughput medio post-IQR+IC [MB/s]
+        - overhead (float): overhead medio post-IQR+IC [%]
+    """
+    stats_dir = Path(__file__).parent.parent.parent / "data/stats"
+    stats_files = list(stats_dir.glob("*_stats.json"))
+
+    if not stats_files:
+        print(f"No stats files found in {stats_dir}")
+        return {}, {}
+
+    print(f"Found {len(stats_files)} stats files")
+
+    # raggruppa i dati per (partition_count, batch_size)
+    groups: Dict[Tuple[int, int], Dict[str, List[float]]] = defaultdict(
+        lambda: {"throughput": [], "overhead": []}
+    )
+
+    # carica i dati da ogni file e popola i gruppi
+    for stats_file in stats_files:
+        with open(stats_file) as f:
+            data = json.load(f)
+
+        partition_count = data["experiment_config"]["partition_count"]
+        batch_size = data["experiment_config"]["nb_messages_per_batch"]
+        throughput = data["kafka_metrics"]["throughput_mbps"]
+        overhead = data["kafka_metrics"]["overhead_percentage"]
+        
+        # aggiorna il dizionario dei gruppi per (partition_count, batch_size)
+        key = (partition_count, batch_size)
+        groups[key]["throughput"].append(throughput)
+        groups[key]["overhead"].append(overhead)
+
+    data_by_partitions: Dict[int, List[Dict]] = defaultdict(list)
+
+    # per ogni gruppo applica IQR e IC, e organizza i dati per partition_count
+    for (partition_count, batch_size), values in groups.items():
+        t_filtered, _ = tukey_iqr_filter(values["throughput"])
+        o_filtered, _ = tukey_iqr_filter(values["overhead"])
+
+        t_ci = compute_ci(t_filtered)
+        o_ci = compute_ci(o_filtered)
+
+        data_by_partitions[partition_count].append({
+            "batch_size": batch_size,
+            "throughput": t_ci["mean"],
+            "overhead":   o_ci["mean"],
+        })
+
+    # ordina i dati per batch_size all'interno di ogni partition_count
+    for pc in data_by_partitions:
+        data_by_partitions[pc].sort(key=lambda d: d["batch_size"])
+
+    return dict(data_by_partitions)
+
 
 def main():
-    stats_dir = Path(__file__).parent.parent.parent / "data/stats"
-    partition_counts = [3, 6, 9, 12]
-    fig, axes = plt.subplots(1, 4, figsize=(20, 5), sharey=False)
+    data_by_partitions = load_bandwidth_data()
+    
+    if not data_by_partitions:
+        print("No data found!")
+        return 1
+
+    partition_counts = sorted(data_by_partitions.keys())
+    fig, axes = plt.subplots(1, len(partition_counts), figsize=(5 * len(partition_counts), 5), sharey=False)
     
     fig.suptitle('Network Bandwidth Evaluation: Throughput vs Overhead', fontsize=12, fontweight='bold')
 
     for idx, partition_count in enumerate(partition_counts):
         ax1 = axes[idx]
-        stats_files = list(stats_dir.glob(f"*_part_{partition_count}_stats.json"))
         
-        if not stats_files:
+        partition_data = data_by_partitions.get(partition_count, [])
+        if not partition_data:
             print(f"No data found for partition {partition_count}")
-            ax1.text(0.5, 0.5, 'No data', transform=ax1.transAxes, 
-                     ha='center', va='center', fontsize=14, color='red')
+            ax1.text(0.5, 0.5, 'No data', transform=ax1.transAxes, ha='center', va='center', fontsize=14, color='red')
             ax1.set_xlabel('Number of Messages per Batch', fontsize=12)
-            ax1.text(0.5, 1.05, f'Partition Number = {partition_count}', 
-                     transform=ax1.transAxes, fontsize=11, ha='center')
+            ax1.text(0.5, 1.05, f'Partitions = {partition_count}', transform=ax1.transAxes, fontsize=11, ha='center')
             continue
-        
-        # Aggrega dati per batch size
-        data_by_batch = {}
-        
-        for file_path in stats_files:
-            with open(file_path) as f:
-                data = json.load(f)
-                batch_size = data['experiment_config']['nb_messages_per_batch']
-                throughput = data['kafka_metrics']['throughput_mbps']
-                overhead = data['kafka_metrics']['overhead_percentage']
-                
-                if batch_size not in data_by_batch:
-                    data_by_batch[batch_size] = {
-                        'throughput_mbps': [],
-                        'overhead_percentage': []
-                    }
 
-                data_by_batch[batch_size]['throughput_mbps'].append(throughput)
-                data_by_batch[batch_size]['overhead_percentage'].append(overhead)
-
-        
-        # Calcola throughput e overhead medi per batch size
-        batch_sizes = []
-        throughputs = []
-        overheads = []
-        
-        print(f"\nPartition {partition_count} results:")
-        for batch_size in sorted(data_by_batch.keys()):
-            stats = data_by_batch[batch_size]
-            
-            # Throughput medio in MB/s
-            throughput = sum(stats['throughput_mbps']) / len(stats['throughput_mbps'])
-            
-            # Overhead medio in %
-            overhead = sum(stats['overhead_percentage']) / len(stats['overhead_percentage'])
-            
-            batch_sizes.append(batch_size)
-            throughputs.append(throughput)
-            overheads.append(overhead)
-            
-            print(f"  Batch {batch_size}: throughput {throughput:.1f} MB/s, overhead {overhead:.1f}%")
-        
-        batch_sizes = np.array(batch_sizes)
-        throughputs = np.array(throughputs)
-        overheads = np.array(overheads)
+        batch_sizes = np.array([d["batch_size"]  for d in partition_data])
+        throughputs = np.array([d["throughput"]  for d in partition_data])
+        overheads   = np.array([d["overhead"]    for d in partition_data])
         
         batch_smooth = np.linspace(1, max(batch_sizes), 300)
         

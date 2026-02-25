@@ -84,9 +84,9 @@ def plot_poisson_validation(data_dir: Path, lambda_rate: float, load_label: str,
             f"{outliers_removed} outliers removed ({outlier_pct:.2f}%) "
             f"| x_thr = {x_thr*1000:.2f}ms (alpha={alpha})")
         
-        window    = 10.0 / lambda_rate # finestra temporale per conteggio messaggi (10x inter-arrival teorico)
-        ts_s      = np.array(timestamps) / 1000.0 
-        bins      = np.arange(ts_s.min(), ts_s.max() + window, window)
+        window = 10.0 / lambda_rate # finestra temporale per conteggio messaggi (10x inter-arrival teorico)
+        ts_s = np.array(timestamps) / 1000.0 
+        bins = np.arange(ts_s.min(), ts_s.max() + window, window)
         counts, _ = np.histogram(ts_s, bins=bins) # conteggio messaggi per finestra temporale
         
         ax_hist, ax_qq, ax_count = axes[row_idx]
@@ -128,7 +128,7 @@ def plot_poisson_validation(data_dir: Path, lambda_rate: float, load_label: str,
 
         k_range = np.arange(0, counts.max() + 5) # range di k per PMF (0 a max count + margine)
         poisson_pmf = stats.poisson.pmf(k_range, mu=lambda_rate * window) # PMF teorica per Poisson con media λ*window
-        ax_count.plot(k_range, poisson_pmf, 'ro-', markersize=4, linewidth=1.5, label=f'Poisson(μ={lambda_rate}) PMF')
+        ax_count.plot(k_range, poisson_pmf, 'ro-', markersize=4, linewidth=1.5, label=f'Poisson(μ={(lambda_rate * window):.1f}) PMF')
         ax_count.set_title(f'{producer_name} — Message Count per {window_label} Window', fontsize=10)
         ax_count.set_xlabel(f'Messages per {window_label} window')
         ax_count.set_ylabel('Frequency (normalized)')
