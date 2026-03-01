@@ -502,11 +502,11 @@ Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
 
 - **`experiments/network_bandwidth_evaluation/plots/network_bandwidth_evaluation.png`**: 
 
-  ![Network Bandwidth Evaluation](./experiements/network_bandwidth_evaluation/plots/network_bandwidth_evaluation.png)
+  ![Network Bandwidth Evaluation](./experiments/network_bandwidth_evaluation/plots/network_bandwidth_evaluation.png)
 
 - **`experiments/correlation_analysis/plots/correlation_analysis.png`**: 
 
-  ![Correlation Analysis](./experiements/correlation_analysis/plots/correlation_analysis.png)
+  ![Correlation Analysis](./experiments/correlation_analysis/plots/correlation_analysis.png)
 
 
 ## 🐳 Docker Compose

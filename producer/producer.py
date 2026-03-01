@@ -11,59 +11,60 @@ from confluent_kafka import Producer, Consumer
 from typing import Dict
 import numpy as np
 
-bootstrap = os.getenv("BOOTSTRAP_SERVERS")
-topic = os.getenv("TOPIC_NAME")
-run_id = os.getenv("RUN_ID")
-payload_size_bytes = int(os.getenv("PAYLOAD_SIZE_BYTES"))
-nb_messages_per_batch = int(os.getenv("NB_MESSAGES_PER_BATCH"))
-producer_name = os.getenv("CONTAINER_NAME", socket.gethostname())
-partition_count = int(os.getenv("PARTITION_COUNT"))
-lambda_rate = float(os.getenv("LAMBDA_RATE"))
-send_mode = os.getenv("SEND_MODE") 
+bootstrap = os.getenv("BOOTSTRAP_SERVERS") # kafka bootstrap servers
+topic = os.getenv("TOPIC_NAME") # topic name
+run_id = os.getenv("RUN_ID") # unique identifier
+payload_size_bytes = int(os.getenv("PAYLOAD_SIZE_BYTES")) # payload size 
+nb_messages_per_batch = int(os.getenv("NB_MESSAGES_PER_BATCH")) # number of messages per batch (N)
+producer_name = os.getenv("CONTAINER_NAME", socket.gethostname()) # producer name if provided, otherwise use hostname
+partition_count = int(os.getenv("PARTITION_COUNT")) # number of partitions in the topic
+lambda_rate = float(os.getenv("LAMBDA_RATE")) # poison arrival rate (messages per second)
+send_mode = os.getenv("SEND_MODE") # mode of sending messages: "poisson" or "fixed_rate"
 
-BATCH_HEADER_SIZE = 61  # bytes, formato Kafka fisso
-COMPRESSION_RATIO = 1.0  # nessuna compressione
+BATCH_HEADER_SIZE = 61  # bytes, fixed Kafka format
+COMPRESSION_RATIO = 1.0  # no compression
 
-key_counter = itertools.count(start=1) # contatore per generare chiavi uniche incrementali
+key_counter = itertools.count(start=1) # counter for generating unique incremental keys for messages
 def make_message() -> dict:
-    """Genera payload e chiave incrementale"""
-    key     = str(next(key_counter)) # chiave incrementale unica per ogni messaggio
-    message = ''.join(random.choices(string.ascii_lowercase, k=payload_size_bytes)) # payload casuale di lettere minuscole della lunghezza specificata
-    return {"key": key, "message": message}
+    """Generates the payload and an incremental key."""
+    key     = str(next(key_counter)) # incremental key as string
+    message = ''.join(random.choices(string.ascii_lowercase, k=payload_size_bytes)) # random string of specified byte size
 
-# Funzione per simulare arrivi Poisson
+# Function to simulate Poisson arrivals
 def poisson_sleep():
-    """Attende un intervallo esponenziale con media 1/lambda_rate secondio per simulare un processo di arrivo Poisson"""
+    """Waits for an exponential inter-arrival time with mean 1/lambda_rate seconds to simulate a Poisson arrival process."""
     interval = np.random.exponential(1.0 / lambda_rate)
     time.sleep(interval)
     
-linger_ms = 30000 # per non inviare batch incompleti troppo presto, ma lasciare tempo sufficiente per completare i batch anche a lambda alti
+linger_ms = 30000 # To avoid sending incomplete batches too early, while allowing sufficient time to complete batches even at high lambda values.
 
-current_batch_id = 0  # serve per tracciare l'ID del batch corrente cosi da testare se effettivamente in un batch ci sono i messaggi attesi
-messages_in_current_batch = 0 # serve per contare quanti messaggi sono stati inviati nel batch corrente, cosi da sapere quando incrementare l'ID del batch
+current_batch_id = 0  # Used to track the current batch ID in order to verify that each batch contains the expected number of messages.
+messages_in_current_batch = 0 # Used to count how many messages have been sent in the current batch, so we know when to increment the batch ID.
 delivery_records = [] 
 batch_tracking_data = [] 
 
-# Tracking per batch+broker (per gestire N partizioni su M broker)
-batch_broker_first_delivery = {}  # Traccia il primo delivery per ogni batch+broker
+# Tracking per batch and per broker (to handle N partitions across M brokers)
+batch_broker_first_delivery = {}  # Tracks the first delivery for each batch and broker combination
 
-# Variabile globale per tracciare l'ultimo invio GLOBALE
+# Global variable used to track the last GLOBAL send event
 last_global_send_per_broker = {}  # {broker_id: timestamp_ms}
 batches_sent_since_last_record = {}  # {broker_id: counter}
 
+# Create directories for data and stats if they don't exist
 data_dir = Path("./data")
 data_dir.mkdir(parents=True, exist_ok=True)
 
+# Create directory for stats if it doesn't exist
 stats_dir = Path("./data/stats")
 stats_dir.mkdir(parents=True, exist_ok=True)
 
-# File per salvare i record dei messaggi inviati
+# File path for producer's JSONL recap of deliveries
 jsonl_path = data_dir / f"{producer_name}_{run_id}_messages_recap.jsonl"
 
 def get_partition_leader_mapping() -> Dict[int, int]:
     """
-    Ottiene il mapping Partizione -> Broker Leader usando Admin API
-    Ritorna: {partition_id: broker_id}
+    Retrieves the Partition -> Broker Leader mapping using the Admin API.
+    Returns: {partition_id: broker_id}
     """
     consumer = Consumer({
         'bootstrap.servers': bootstrap,
@@ -88,19 +89,19 @@ def get_partition_leader_mapping() -> Dict[int, int]:
         return {}
 
 
-# Ottieni mapping partizioni all'avvio del producer
+# Retrieve the partition mapping at producer startup
 partition_to_broker = get_partition_leader_mapping()
 
-# Tracking per broker
+# Tracking per broker: batch count and partition count 
 broker_tracking = {
     broker_id: {
         'batch_count': 0,
-        'partition_count': 0,  # inizializzato a 0, sarà calcolato dopo
+        'partition_count': 0,  # Initialized to 0; it will be computed later
     }
     for broker_id in set(partition_to_broker.values()) if partition_to_broker
 }
 
-# Conta quante partizioni ha ogni broker
+# Counts how many partitions each broker has
 if partition_to_broker and broker_tracking:
     for partition_id, broker_id in partition_to_broker.items():
         broker_tracking[broker_id]['partition_count'] += 1
@@ -109,8 +110,9 @@ if partition_to_broker and broker_tracking:
     for broker_id, info in broker_tracking.items():
         print(f"  Broker {broker_id}: {info['partition_count']} partitions", flush=True)
 
-# stima preliminare della dimensione messaggio
+# Preliminary estimate of the message size
 def estimate_message_size() -> int:
+    '''Estimates the size of a message in bytes'''
     tmp_key = "0"
     tmp_payload = {
         "key": tmp_key,
@@ -125,13 +127,13 @@ def estimate_message_size() -> int:
     return len(tmp_key.encode("utf-8")) + len(value_bytes)
 
 
-estimated_msg_size = estimate_message_size()
-batch_size_bytes = int(estimated_msg_size * nb_messages_per_batch * 1.2) # margine del 20% per sicurezza
+estimated_msg_size = estimate_message_size() # estimated size of a single message in bytes
+batch_size_bytes = int(estimated_msg_size * nb_messages_per_batch * 1.2) # 20% safety margin
 
 producer_conf = {
-    "bootstrap.servers": bootstrap, # indirizzo del cluster Kafka
-    "linger.ms": linger_ms,  # tempo massimo in ms per aspettare prima di inviare un batch incompleto
-    "batch.size": batch_size_bytes, # dimensione massima del batch in byte (calcolata come stima dimensione messaggio * nb_messages_per_batch * margine)
+    "bootstrap.servers": bootstrap, # Kafka cluster address
+    "linger.ms": linger_ms,  # Maximum time (in ms) to wait before sending an incomplete batch
+    "batch.size": batch_size_bytes, # Maximum batch size in bytes (computed as estimated message size * nb_messages_per_batch * safety margin)
 }
 
 p = Producer(producer_conf)
@@ -139,8 +141,8 @@ send_ts = {}
 
 def delivery_report(err, msg):
     """
-    Callback quando un messaggio è stato consegnato al broker.
-    Scrive una riga JSONL con:
+    Callback triggered when a message has been delivered to the broker.
+    Writes a JSONL row containing:
     - key
     - run_id
     - topic
@@ -162,15 +164,15 @@ def delivery_report(err, msg):
     send_batch_id = full_payload.get("send_batch_id")
     run_id_from_payload = full_payload.get("run_id")
 
-    # dimensione totale del messaggio inviato al broker (key + value)
+    # Total size of the message sent to the broker (key + value)
     key_bytes = msg.key() or b""
     message_size = len(key_bytes) + len(full_payload_bytes)
     
-    # partition e broker_id
+    # Partition and broker_id
     partition = msg.partition()
     broker_id = partition_to_broker.get(partition) if partition_to_broker else None
     
-
+    # json record to be written in the producer's JSONL recap file
     record = {
         "key": msg_key,
         "run_id": run_id_from_payload,
@@ -186,62 +188,59 @@ def delivery_report(err, msg):
 
     delivery_records.append(record)
     
-    # Traccia per correlation analysis
     if partition_to_broker and broker_id and send_batch_id:
         batch_broker_key = f"{send_batch_id}_{broker_id}"
         
-        # Se è il primo messaggio di questo batch verso questo broker
+        # If this is the first message of this batch sent to this broker
         if batch_broker_key not in batch_broker_first_delivery:
             time_ms = time.time_ns() / 1_000_000
             batch_broker_first_delivery[batch_broker_key] = {
-                'timestamp_ms': time_ms,  # timestamp del primo delivery in ms
+                'timestamp_ms': time_ms,  # first delivery timestamp for this batch and broker
                 'partition': partition,
                 'message_size': message_size,
                 'batch_id': send_batch_id,
                 'broker_id': broker_id
             }
             
-            # Registra per correlation analysis
             record_batch_delivery(broker_id, send_batch_id, partition, time_ms, message_size)
 
-def record_batch_delivery(broker_id: int, batch_id: int, partition: int, 
-                          timestamp_ms: float, message_size: float):
+def record_batch_delivery(broker_id: int, batch_id: int, partition: int, timestamp_ms: float, message_size: float):
     """
-    Registra il momento di primo delivery di un batch verso un broker.
-    Questa funzione viene chiamata dal delivery_report quando il primo 
-    messaggio di un batch raggiunge un broker specifico.
+    Records the timestamp of the first delivery of a batch to a broker.
+    This function is called by delivery_report when the first
+    message of a batch reaches a specific broker.
     """
     if broker_id not in broker_tracking:
         return
     
-    # Calcola Sb (batch size in bytes)
-    Sm = message_size  # Dimensione del messaggio serializzato
+    # # Computes Sb (batch size in bytes)
+    Sm = message_size  # size of serialized message
     Sb = (Sm * nb_messages_per_batch + BATCH_HEADER_SIZE) / COMPRESSION_RATIO
     
-    # P = numero di partizioni gestite da questo broker (partizioni leader)
+    # P = number of partitions managed by this broker (leader partitions)
     P = broker_tracking[broker_id]['partition_count']
     
-    # Inizializza contatori per questo broker
+    # Initializes counters for this broker
     if broker_id not in batches_sent_since_last_record:
         batches_sent_since_last_record[broker_id] = 0
         last_global_send_per_broker[broker_id] = None
         
     batches_sent_since_last_record[broker_id] += 1
 
-    # Registra Gs solo dopo aver inviato N = partition_count totali batch
-    # Questo garantisce un "ciclo completo"
+    # Record Gs only after sending N = partition_count total batches.
+    # This ensures a "complete cycle."
     if batches_sent_since_last_record[broker_id] >= P:
-        # Calcola Gs: intervallo dall'ultimo gruppo completo
+        # Computes Gs: interval since the last complete group
         Gs = None
         
         if last_global_send_per_broker[broker_id] is not None:
             Gs = timestamp_ms - last_global_send_per_broker[broker_id]
         
-        # Aggiorna timestamp e reset contatore
+        # Updates the timestamp and resets the counter
         last_global_send_per_broker[broker_id] = timestamp_ms
         batches_sent_since_last_record[broker_id] = 0
         
-        # Salva i dati solo dopo aver completato il gruppo
+        # Save the data only after completing the group
         if Gs is not None:
             batch_tracking_data.append({
                 'broker_id': broker_id,
@@ -252,67 +251,65 @@ def record_batch_delivery(broker_id: int, batch_id: int, partition: int,
                 'Nb': nb_messages_per_batch,
                 'Sb': round(Sb, 2),
                 'P': P,
-                'Sr': None,  # Calcolato dopo da update_stats_with_jmx
+                'Sr': None,  # calculated later from update_stats_with_jmx
                 'Gs': round(Gs, 2)  
             })
         
 def write_all_producer_records():
-    """Scrive tutti i record del producer alla fine dell'esperimento"""
+    """Writes all producer records at the end of the experiment."""
     with jsonl_path.open("w", encoding="utf-8") as f:
         for record in delivery_records:
             f.write(json.dumps(record) + "\n")
 
 def write_unified_stats():
-    """
-    Aggiorna il file stats con batch_metrics
-    """
+    """Updates the stats file with batch_metrics"""
     
     if not batch_tracking_data:
         return
     
-    # Estrae liste di Sm, Sb, Gs
+    # Extract Sm, Sb, Gs values 
     Sm_values = [item['Sm'] for item in batch_tracking_data]
     Sb_values = [item['Sb'] for item in batch_tracking_data]
     Gs_values = [item['Gs'] for item in batch_tracking_data]
     
-    # Costanti 
+    # Constants 
     Nb = batch_tracking_data[0]['Nb']
     P = batch_tracking_data[0]['P']
     
-    # Converte in numpy arrays
+    # Convert to numpy arrays 
     Sm_array = np.array(Sm_values)
     Sb_array = np.array(Sb_values)
     Gs_array = np.array(Gs_values)
     
-    # Calcola percentili P5 e P95 per Gs
+    # Computes the P5 and P95 percentiles for Gs
     p5_gs, p95_gs = np.percentile(Gs_array, [5, 95])
     mask = (Gs_array >= p5_gs) & (Gs_array <= p95_gs)
     
-    # Applica filtro
+    # Apply filter
     Sm_filtered = Sm_array[mask]
     Sb_filtered = Sb_array[mask]
     Gs_filtered = Gs_array[mask]
     
-    # Calcola batch_count per ogni broker
+    # Calculate batch counts per broker
     broker_batch_counts = {}
     for item in batch_tracking_data:
         broker_id = item['broker_id']
         broker_batch_counts[broker_id] = broker_batch_counts.get(broker_id, 0) + 1
     
-    # Carica stats esistenti
+    # Upload the stats to the producer's stats file
     stats_path = stats_dir / f"{producer_name}_{run_id}_stats.json"
     
     if stats_path.exists():
         with stats_path.open('r') as f:
             stats = json.load(f)
     else:
-        # Fallback se stats non esiste ancora (non dovrebbe succedere)
+        # Fallback if the stats file does not exist yet (should not happen)
         stats = {
             "run_id": run_id,
             "producer_name": producer_name
         }
     
-    # Aggiungi experiment_config
+    # Add experiment_config to the stats
     stats['experiment_config'] = {
         'partition_count': partition_count,
         'nb_messages_per_batch': nb_messages_per_batch,
@@ -323,7 +320,7 @@ def write_unified_stats():
         'linger_ms': linger_ms,
     }
     
-    # Aggiungi broker_tracking_summary
+    # Add broker_tracking_summary to the stats
     stats['broker_tracking_summary'] = {
         str(broker_id): {
             'batch_count': broker_batch_counts.get(broker_id, 0),
@@ -332,36 +329,34 @@ def write_unified_stats():
         for broker_id, info in broker_tracking.items()
     }
     
-    # Aggiungi batch_metrics
+    # Add batch_metrics to the stats
     stats['batch_metrics'] = {
         'Nb': int(Nb),
         'P': int(P),
         'Sm_mean_bytes': round(float(np.mean(Sm_filtered)), 2),
         'Sb_mean_bytes': round(float(np.mean(Sb_filtered)), 2),
         'Gs_mean_ms': round(float(np.mean(Gs_filtered)), 2),
-        'Sr_mean_bytes': None  # Calcolato dopo da update_stats_with_jmx
+        'Sr_mean_bytes': None  # calculated later from update_stats_with_jmx
     }
     
-    # Riscrivi file stats
+    # Rewrite the stats file
     with stats_path.open('w') as f:
         json.dump(stats, f, indent=2)
 
 
 def send_message():
-    """
-    Chiede un messaggio al message_generator, aggiunge i campi Kafka e lo invia al broker
-    """
+    """Requests a message from the message_generator, adds the Kafka fields,and sends it to the broker."""
     global current_batch_id, messages_in_current_batch
 
     if messages_in_current_batch == 0:
         current_batch_id += 1
 
-    # 1) genera messaggio
+    # 1) generate the message and the key using the message generator
     gen_msg = make_message()
     key = gen_msg["key"]
     message_text = gen_msg["message"]
 
-    # 2) timestamp di invio dal punto di vista del producer
+    # 2) Send timestamp from the producer's perspective
     send_timestamp = time.time_ns() / 1_000_000
     send_ts[key] = send_timestamp
 
@@ -370,7 +365,7 @@ def send_message():
         "run_id": run_id,
         "topic": topic,
         "message": message_text,
-        "send_timestamp_ms": send_timestamp, # timestamp (in ms) generato dal producer nell'istante esatto in cui il messaggio viene creato e “messo in coda” per l’invio
+        "send_timestamp_ms": send_timestamp, # Timestamp (in ms) generated by the producer at the exact moment the message is created and "queued" for sending
         "status": "PENDING",
         "send_batch_id": current_batch_id,
     }
@@ -385,14 +380,14 @@ def send_message():
 
     messages_in_current_batch += 1
     if messages_in_current_batch >= nb_messages_per_batch:
-        messages_in_current_batch = 0 # resetto il contatore dei messaggi nel batch
+        messages_in_current_batch = 0 # reset the counter to start a new batch
 
 
 def main():
-    target_messages = int(os.getenv("TARGET_MESSAGES")) # numero totale di messaggi da inviare
-    experiment_duration = int(os.getenv("EXPERIMENT_DURATION")) # durata massima dell'esperimento in secondi
+    target_messages = int(os.getenv("TARGET_MESSAGES")) # total number of messages to send in the experiment
+    experiment_duration = int(os.getenv("EXPERIMENT_DURATION")) # maximum duration of the experiment in seconds
     
-    time.sleep(60)  # attendo che tutti i consumer siano pronti
+    time.sleep(60)  # wait for 60 seconds to ensure that all consumers are up and running before starting the transmission of messages. 
     
     transmission_start = time.time()
     end_time = transmission_start + experiment_duration
@@ -401,12 +396,12 @@ def main():
         messages_sent = 0
         while (messages_sent < target_messages and time.time() < end_time) or messages_in_current_batch > 0:
             if messages_sent < target_messages and time.time() < end_time:
-                if send_mode == "poisson": # se siamo in modalità poisson
-                    poisson_sleep()  # attende un intervallo casuale per simulare arrivi Poisson
+                if send_mode == "poisson": # of the mode is poisson
+                    poisson_sleep()  # waits for a random interval drawn from an exponential distribution to simulate Poisson arrivals
                 send_message()
                 messages_sent += 1
             elif messages_in_current_batch > 0:
-                # Completa il batch corrente anche se tempo/target sono raggiunti
+                # If we have sent all target messages or reached the time limit, but we are still in the middle of a batch, we continue sending messages without waiting (to complete the batch) until messages_in_current_batch resets to 0.
                 send_message()
                 messages_sent += 1
             else:
@@ -415,7 +410,7 @@ def main():
         p.flush()
         transmission_end = time.time()
         
-        # Invio segnale di fine trasmissione cosi che i consumer possano terminare
+        # After finishing sending all messages (or reaching the time limit), we send an "END_SIGNAL" message to each partition to indicate to the consumers that no more messages will be sent. This allows the consumers to know when they have received all messages and can finalize their processing.
         for partition in range(partition_count):
             end_signal = json.dumps({
                 "type": "END_SIGNAL",
@@ -427,13 +422,15 @@ def main():
         
         time.sleep(2)
         
-        write_all_producer_records()
+        write_all_producer_records() # writes the JSONL recap of all deliveries for this producer
         
+        # Computes the transmission stats
         total_time = transmission_end - transmission_start
         num_messages = len(delivery_records)
         total_payload_bytes = num_messages * payload_size_bytes
         unique_batches = len(set(r['send_batch_id'] for r in delivery_records))
         
+        # Upload the stats to the producer's stats file
         stats = {
             "run_id": run_id,
             "producer_name": producer_name,
@@ -459,11 +456,10 @@ def main():
         with stats_path.open('w') as f:
             json.dump(stats, f, indent=2)
             
-        write_unified_stats() # aggiorna batch_metrics nel file stats
+        write_unified_stats() # updates the stats file
     
     while True:
-        time.sleep(60) # mantiene il container attivo
-
+        time.sleep(60) # keep the producer running
 
 if __name__ == "__main__":
     main()

@@ -3,10 +3,10 @@ from scipy import stats
 
 def compute_ci(values: list | np.ndarray, confidence: float = 0.95) -> dict:
     """
-    Calcola media e intervallo di confidenza con t-distribution.
+    Computes the mean and confidence interval using the t-distribution.
 
     Returns:
-        dict con chiavi: mean, ci_lower, ci_upper, ci_half, std, n
+        dict with keys: mean, ci_lower, ci_upper, ci_half, std, n
     """
     arr = np.array(values, dtype=float)
     n = len(arr)
@@ -20,16 +20,16 @@ def compute_ci(values: list | np.ndarray, confidence: float = 0.95) -> dict:
                 "ci_upper": float(arr[0]), "ci_half": 0.0,
                 "std": 0.0, "n": 1}
 
-    mean = np.mean(arr) # media campione
-    se = stats.sem(arr) # errore standard della media (std campione / sqrt(n))
-    t_crit = stats.t.ppf((1 + confidence) / 2, df=n - 1) # t critico per intervallo di confidenza
-    ci_half = t_crit * se # metà ampiezza dell'intervallo di confidenza
+    mean = np.mean(arr) # mean of the sample
+    se = stats.sem(arr) # Standard error of the mean (sample std / sqrt(n))
+    t_crit = stats.t.ppf((1 + confidence) / 2, df=n - 1) # Critical t-value for the confidence interval
+    ci_half = t_crit * se # Half-width of the confidence interval
 
     return {
-        "mean": round(float(mean), 4), # media campione arrotondata a 4 decimali
-        "ci_lower": round(float(mean - ci_half), 4), # limite inferiore dell'intervallo di confidenza
-        "ci_upper": round(float(mean + ci_half), 4), # limite superiore dell'intervallo di confidenza
-        "ci_half": round(float(ci_half), 4), # metà ampiezza dell'intervallo di confidenza
-        "std": round(float(np.std(arr, ddof=1)), 4), # deviazione standard campione
-        "n": n # numero di campioni
+        "mean": round(float(mean), 4), # mean of the sample rounded to 4 decimal places
+        "ci_lower": round(float(mean - ci_half), 4), # lower bound of confidence interval
+        "ci_upper": round(float(mean + ci_half), 4), # upper bound of confidence interval
+        "ci_half": round(float(ci_half), 4), # half-width of confidence interval
+        "std": round(float(np.std(arr, ddof=1)), 4), # sample standard deviation
+        "n": n # number of samples
     }

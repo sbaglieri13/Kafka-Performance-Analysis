@@ -13,14 +13,15 @@ from utilities.confidence_interval import compute_ci
 
 def load_batch_metrics_data() -> Tuple[Dict[int, List[Dict]]]: 
     """
-    Carica i file stats, raggruppa per (partition_count, batch_size),
-    applica IQR su Sr e Gs, poi IC al 95%.
-    Restituisce per ogni partition_count una lista di dict con:
+    Loads the stats files, groups by (partition_count, batch_size),
+    applies IQR filtering on Sr and Gs, then computes the 95% confidence interval.
+
+    Returns, for each partition_count, a list of dicts containing:
         - batch_size (int)
-        - Sr_mean (float): dimensione media pacchetto post-IQR+IC [KB]
-        - Gs_mean (float): intervallo medio di invio post-IQR+IC [ms]
-        - Sr_n (int):  numero campioni validi dopo IQR
-        - Gs_n (int):  numero campioni validi dopo IQR
+        - Sr_mean (float): mean packet size after IQR + CI filtering [KB]
+        - Gs_mean (float): mean send interval after IQR + CI filtering [ms]
+        - Sr_n (int): number of valid samples after IQR filtering
+        - Gs_n (int): number of valid samples after IQR filtering
     """
     stats_dir = Path(__file__).parent.parent.parent / "data/stats"
     stats_files = list(stats_dir.glob("*_stats.json"))
@@ -31,12 +32,12 @@ def load_batch_metrics_data() -> Tuple[Dict[int, List[Dict]]]:
     
     print(f"Found {len(stats_files)} stats files")
 
-    # raggruppa i dati per (partition_count, batch_size)
+    # grouping by (partition_count, batch_size)
     groups: Dict[Tuple[int, int], Dict[str, List[float]]] = defaultdict(
         lambda: {"Sr": [], "Gs": []}
     )
 
-    # carica i dati da ogni file e popola i gruppi
+    # Load data from each file and populate the groups
     for stats_file in stats_files:
         with open(stats_file, "r") as f:
             stats_data = json.load(f)
@@ -45,7 +46,7 @@ def load_batch_metrics_data() -> Tuple[Dict[int, List[Dict]]]:
         batch_size = stats_data["experiment_config"]["nb_messages_per_batch"]
         batch_metrics = stats_data["batch_metrics"]
 
-        Sr_kb = batch_metrics["Sr_mean_bytes"] / 1024 
+        Sr_kb = batch_metrics["Sr_mean_bytes"] / 1024 # convert to KB
         Gs_ms = batch_metrics["Gs_mean_ms"]
 
         key = (partition_count, batch_size)
@@ -54,7 +55,7 @@ def load_batch_metrics_data() -> Tuple[Dict[int, List[Dict]]]:
 
     data_by_partitions: Dict[int, List[Dict]] = defaultdict(list)
 
-    # applica IQR e IC per ogni gruppo e organizza i dati per partition_count
+    # Apply IQR filtering and compute the confidence interval for each group, then organize the data by partition_count
     for (partition_count, batch_size), values in groups.items():
         Sr_arr = np.array(values["Sr"])
         Gs_arr = np.array(values["Gs"])
@@ -64,7 +65,7 @@ def load_batch_metrics_data() -> Tuple[Dict[int, List[Dict]]]:
         Sr_ci = compute_ci(Sr_filtered)
         Gs_ci = compute_ci(Gs_filtered)
 
-        # aggiorna il dizionario organizzato per partition_count
+        # update the data structure to be organized by partition_count
         data_by_partitions[partition_count].append({
             "batch_size": batch_size,
             "Sr_mean":    Sr_ci["mean"],
@@ -73,7 +74,7 @@ def load_batch_metrics_data() -> Tuple[Dict[int, List[Dict]]]:
             "Gs_n":       Gs_ci["n"],
         })
 
-    # ordina i dati per batch_size all'interno di ogni partition_count
+    # Sort the data by batch_size within each partition_count
     for partition_count in data_by_partitions:
         data_by_partitions[partition_count].sort(key=lambda d: d["Sr_mean"])
 
@@ -81,7 +82,7 @@ def load_batch_metrics_data() -> Tuple[Dict[int, List[Dict]]]:
 
 
 def plot_correlation_analysis(data_by_partitions: Dict[int, List[Dict]], output_dir: Path):
-    """Genera 4 subplot orizzontali per ogni partition_count, con scatter dei valori medi (post IQR+IC)"""
+    """Generates 4 horizontal subplots for each partition_count, with scatter plots of the mean values (post IQR + CI)."""
 
     colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728']
     markers = ['s', '^', 'o', 'D']
@@ -112,24 +113,24 @@ def plot_correlation_analysis(data_by_partitions: Dict[int, List[Dict]], output_
 
         color, marker = colors[idx % len(colors)], markers[idx % len(markers)]
 
-        # Punto medio, valore rappresentativo post IQR+IC
+        # Midpoint, representative value post IQR+CI
         ax.scatter(
             packet_sizes, send_intervals,
             marker=marker,
-            s=80,
+            s=70,
             color=color,
             edgecolors="black",
             linewidths=0.8,
             zorder=3,
         )
 
-        # Fit lineare sui valori medi
+        # Linear fit on mean values
         def linear_model(x, a, b):
             return a * x + b
 
         params, _ = curve_fit(linear_model, packet_sizes, send_intervals)
         
-        # Linea solo sui dati esistenti
+        # Generate smooth line for the linear fit
         x_smooth = np.linspace(packet_sizes.min(), packet_sizes.max(), 100)
         y_pred = linear_model(x_smooth, *params)
         
@@ -139,7 +140,7 @@ def plot_correlation_analysis(data_by_partitions: Dict[int, List[Dict]], output_
 
         ax.plot(
             x_smooth, y_pred, "--",
-            color=color, linewidth=2.2, alpha=0.85,
+            color=color, linewidth=2.2, alpha=0.5,
             label=f"partition numbers={partition_count}  R²={r_squared:.4f}",
         )    
 
@@ -148,7 +149,7 @@ def plot_correlation_analysis(data_by_partitions: Dict[int, List[Dict]], output_
         ax.set_xlabel('Packet Size (KB)', fontsize=11)
         ax.set_ylabel('Packet send interval (ms)', fontsize=11)
         ax.legend(loc='upper left', fontsize=9)
-        ax.grid(True, alpha=0.3, linestyle='--')
+        ax.grid(True, alpha=0.3)
     
     plt.tight_layout()
     output_file = output_dir / "correlation_analysis.png"

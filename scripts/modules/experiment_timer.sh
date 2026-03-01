@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-# ============================================================
-# FUNZIONE PROGRESS BAR ESPERIMENTO
-# ============================================================
+# PROGRESS BAR AND TIMER FOR EXPERIMENT
 experiment_timer() {
     local total_duration=$1
     local warmup_duration=60  # Producer warmup time
@@ -16,7 +14,7 @@ experiment_timer() {
     echo ""
     
     local elapsed=0
-    local interval=1  # Update ogni secondo
+    local interval=1  # update every second
     local bar_length=50
     
     # Warmup phase
@@ -30,7 +28,7 @@ experiment_timer() {
         local filled=$((percentage * bar_length / 100))
         local empty=$((bar_length - filled))
         
-        # Genera progress bar 
+        # Generate progress bar
         local bar=$(printf "%${filled}s" | tr ' ' '#')
         bar="${bar}$(printf "%${empty}s")"
         
@@ -54,7 +52,7 @@ experiment_timer() {
         local filled=$((percentage * bar_length / 100))
         local empty=$((bar_length - filled))
         
-        # Genera progress bar
+        # Generate progress bar
         local bar=$(printf "%${filled}s" | tr ' ' '#')
         bar="${bar}$(printf "%${empty}s")"
         
@@ -66,7 +64,7 @@ experiment_timer() {
 
     echo ""
     echo ">> Waiting consumers..."
-    sleep 60  # Attende che i consumer completino l'elaborazione
+    sleep 60  # wait for consumers to process remaining messages
     
     echo ""
     echo "============================================="

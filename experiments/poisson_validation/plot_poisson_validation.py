@@ -7,8 +7,8 @@ from scipy import stats
 
 def load_send_timestamps(data_dir: Path) -> dict:
     """
-    Carica i send_timestamp_ms dai file producer recap.
-    Ritorna {producer_name: [t1, t2, ...]} ordinati.
+    Loads send_timestamp_ms from producer recap files.
+    Returns {producer_name: [t1, t2, ...]} sorted.
     """
     producer_files = list(data_dir.glob("producer_*_messages_recap.jsonl"))
     result = {}
@@ -26,7 +26,7 @@ def load_send_timestamps(data_dir: Path) -> dict:
 
 def load_lambda_rate_from_stats(data_dir: Path) -> float:
     """
-    Legge lambda_rate dal file stats del producer
+    Reads lambda_rate from producer stats file
     """
     stats_dir = data_dir / "stats"
     stats_files = list(stats_dir.glob("producer_*_stats.json"))
@@ -43,7 +43,7 @@ def load_lambda_rate_from_stats(data_dir: Path) -> float:
         print("!!! No stats file found !!!")
 
 def compute_interarrivals(timestamps: list) -> np.ndarray:
-    """Calcola gli inter-arrival times in secondi."""
+    """Computes inter-arrival times in seconds."""
     ts = np.array(timestamps) / 1000.0  # ms to s
     return np.diff(ts)
 
@@ -70,13 +70,13 @@ def plot_poisson_validation(data_dir: Path, lambda_rate: float, load_label: str,
         interarrivals_raw  = compute_interarrivals(timestamps)
         theoretical_mean = 1.0 / lambda_rate
         
-        # Rimuove outliers basati su soglia basata sulla distribuzione teorica Exp(lambda):
-        # rimuove inter-arrival per cui P(X > x) < alpha, ovvero x > -ln(alpha)/lambda
-        # Questi eventi non appartengono al processo di Poisson ma al rumore
-        # dello scheduler OS (jitter su sleep) e del sistema
-        alpha = 0.01 # soglia di significatività per definire outliers
-        x_thr = -np.log(alpha) / lambda_rate # soglia di inter-arrival oltre la quale consideriamo outlier
-        interarrivals = interarrivals_raw[interarrivals_raw <= x_thr] # rimuove outliers
+        # Removes outliers based on theoretical Exp(lambda) distribution threshold:
+        # removes inter-arrival times where P(X > x) < alpha, i.e., x > -ln(alpha)/lambda
+        # These events don't belong to the Poisson process but to OS scheduler noise (sleep jitter)
+        # and system effects
+        alpha = 0.01 # Significance threshold for defining outliers
+        x_thr = -np.log(alpha) / lambda_rate # threshold of inter-arrival time beyond which we consider an outlier
+        interarrivals = interarrivals_raw[interarrivals_raw <= x_thr] # remove outliers
 
         outliers_removed = len(interarrivals_raw) - len(interarrivals)
         outlier_pct = outliers_removed / len(interarrivals_raw) * 100
@@ -84,10 +84,10 @@ def plot_poisson_validation(data_dir: Path, lambda_rate: float, load_label: str,
             f"{outliers_removed} outliers removed ({outlier_pct:.2f}%) "
             f"| x_thr = {x_thr*1000:.2f}ms (alpha={alpha})")
         
-        window = 10.0 / lambda_rate # finestra temporale per conteggio messaggi (10x inter-arrival teorico)
+        window = 10.0 / lambda_rate # Time window for message counting (10x theoretical inter-arrival)
         ts_s = np.array(timestamps) / 1000.0 
         bins = np.arange(ts_s.min(), ts_s.max() + window, window)
-        counts, _ = np.histogram(ts_s, bins=bins) # conteggio messaggi per finestra temporale
+        counts, _ = np.histogram(ts_s, bins=bins) # Message count per time window
         
         ax_hist, ax_qq, ax_count = axes[row_idx]
 
@@ -104,7 +104,7 @@ def plot_poisson_validation(data_dir: Path, lambda_rate: float, load_label: str,
         # Plot 2 - Q-Q plot vs Exponential
         ax_qq.set_title(f'{producer_name} — Exponential Q-Q Plot', fontsize=10)
         
-        # Calcola quantili teorici e empirici per il Q-Q plot
+        # Theoretical quantiles for Exponential distribution with mean = 1/lambda
         theoretical_quantiles = stats.expon.ppf(
             np.linspace(0.01, 0.99, len(interarrivals)),
             scale=theoretical_mean
@@ -118,7 +118,7 @@ def plot_poisson_validation(data_dir: Path, lambda_rate: float, load_label: str,
         ax_qq.legend(fontsize=8)
         ax_qq.grid(True, alpha=0.3)
 
-        # Plot 3 - Count distribution per finestre temporali + Poisson PMF
+        # Plot 3 - Count distribution per time window vs Poisson PMF
         window_ms = window * 1000 # to ms
         window_label = f"{window_ms:.0f}ms" if window_ms < 1000 else f"{window:.1f}s"
 
@@ -126,8 +126,8 @@ def plot_poisson_validation(data_dir: Path, lambda_rate: float, load_label: str,
         freq_norm = freq / freq.sum()
         ax_count.bar(unique, freq_norm, alpha=0.6, color='steelblue', label='Empirical count distribution')
 
-        k_range = np.arange(0, counts.max() + 5) # range di k per PMF (0 a max count + margine)
-        poisson_pmf = stats.poisson.pmf(k_range, mu=lambda_rate * window) # PMF teorica per Poisson con media λ*window
+        k_range = np.arange(0, counts.max() + 5) # Range of k for PMF (0 to max count + margin)
+        poisson_pmf = stats.poisson.pmf(k_range, mu=lambda_rate * window) # Theoretical PMF for Poisson with mean λ*window
         ax_count.plot(k_range, poisson_pmf, 'ro-', markersize=4, linewidth=1.5, label=f'Poisson(μ={(lambda_rate * window):.1f}) PMF')
         ax_count.set_title(f'{producer_name} — Message Count per {window_label} Window', fontsize=10)
         ax_count.set_xlabel(f'Messages per {window_label} window')
@@ -147,7 +147,7 @@ def main():
     data_dir = Path(__file__).parent.parent.parent / "data"
     output_dir = Path(__file__).parent / "plots"
     
-    # Legge lambda_rate dal file stats del producer per determinare la categoria di load
+    # Determine load category based on lambda_rate
     lambda_rate = load_lambda_rate_from_stats(data_dir)
     if lambda_rate <= 20:
         load_label = "Low"

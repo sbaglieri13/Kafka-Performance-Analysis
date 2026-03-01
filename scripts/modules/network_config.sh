@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 
-# ============================================================
-# CONFIGURAZIONE INTERATTIVA NETWORK EMULATION
-# ============================================================
+# NETWORK EMULATION CONFIGURATION
 
-# Funzione per configurare una singola rete 
+# Function to configure a single network with delay and jitter
 configure_single_network() {
     local network_name=$1
     local network_var=$2
@@ -45,7 +43,7 @@ configure_network_rules() {
     echo "  - none     (no emulation)"
     echo ""
     
-    # Inizializza file configurazione
+    # Initialize config file with default values
     cat > network_emulator/network_rules.conf << 'EOF'
 # Network Emulation Rules - Auto-generated
 BROKERS=none
@@ -54,7 +52,7 @@ CONSUMERS_G1=none
 CONSUMERS_G2=none
 EOF
     
-    # Configura ogni rete
+    # Configure each network one by one
     configure_single_network "BROKERS" "BROKERS"
     configure_single_network "PRODUCERS" "PRODUCERS"
     configure_single_network "CONSUMERS_G1" "CONSUMERS_G1"
@@ -81,7 +79,7 @@ setup_network_emulation() {
     echo "Setup Network Emulation"
     echo "============================================="
     
-    # Chiedi se applicare regole 
+    # Ask user if they want to configure network emulation rules
     NETWORK_RULES_CONFIGURED="false"  
     read -p "Configure network emulation rules? (y/n): " -n 1 -r
     echo ""
@@ -104,6 +102,6 @@ EOF
     echo "Network emulation setup complete!"
     echo "============================================="
     
-    # Export per usarla in docker_build.sh
+    # Export a variable to indicate whether custom network rules were configured, so it can be used in docker_deploy.sh to decide whether to start the network emulator container
     export NETWORK_RULES_CONFIGURED
 }

@@ -4,46 +4,38 @@ set -e # "exit on error"
 
 echo "=== Network Emulator Starting ==="
 
-# ============================================================
-# STEP 1: ABILITA IP FORWARDING
-# ============================================================
-# IP forwarding permette al container di inoltrare pacchetti 
-# da una rete all'altra (comportarsi come un router)
+# STEP 1: ENABLE IP FORWARDING
+# IP forwarding allows the container to forward packets
+# from one network to another (i.e., behave like a router).
 sysctl -w net.ipv4.ip_forward=1
 
-# ============================================================
-# STEP 2: CONFIGURA NAT (Network Address Translation)
-# ============================================================
-# NAT permette a reti diverse di comunicare tra loro
-# MASQUERADE nasconde l'IP sorgente sostituendolo con quello del router
-# Serve perché i container in reti diverse non si vedrebbero altrimenti
+# STEP 2: CONFIGURE NAT (Network Address Translation)
+# NAT allows different networks to communicate with each other.
+# MASQUERADE hides the source IP by replacing it with the router's IP.
+# This is required because containers on different networks would otherwise not see each other.
 
 echo "=== Configuring NAT rules ==="
 
-# Permetti comunicazione: Producers (172.20.20.0/24) <-> Brokers (172.20.10.0/24)
+# Allow communication: Producers (172.20.20.0/24) <-> Brokers (172.20.10.0/24)
 iptables -t nat -A POSTROUTING -s 172.20.20.0/24 -d 172.20.10.0/24 -j MASQUERADE
 iptables -t nat -A POSTROUTING -s 172.20.10.0/24 -d 172.20.20.0/24 -j MASQUERADE
 
-# Permetti comunicazione: Consumers G1 (172.20.30.0/24) <-> Brokers (172.20.10.0/24)
+# Allow communication: Consumers G1 (172.20.30.0/24) <-> Brokers (172.20.10.0/24)
 iptables -t nat -A POSTROUTING -s 172.20.30.0/24 -d 172.20.10.0/24 -j MASQUERADE
 iptables -t nat -A POSTROUTING -s 172.20.10.0/24 -d 172.20.30.0/24 -j MASQUERADE
 
-# Permetti comunicazione: Consumers G2 (172.20.40.0/24) <-> Brokers (172.20.10.0/24)
+# Allow communication: Consumers G2 (172.20.40.0/24) <-> Brokers (172.20.10.0/24)
 iptables -t nat -A POSTROUTING -s 172.20.40.0/24 -d 172.20.10.0/24 -j MASQUERADE
 iptables -t nat -A POSTROUTING -s 172.20.10.0/24 -d 172.20.40.0/24 -j MASQUERADE
 
-# ============================================================
-# STEP 3: PERMETTI FORWARDING DEI PACCHETTI
-# ============================================================
-# Questa regola esegue il comando: "accetta TUTTI i pacchetti che devono essere 
-# inoltrati da una rete all'altra"
+# STEP 3: ALLOW PACKET FORWARDING
+# This rule executes: "accept ALL packets that must be
+# forwarded from one network to another."
 iptables -A FORWARD -j ACCEPT
 
-# ============================================================
-# STEP 4: PULISCI REGOLE tc ESISTENTI
-# ============================================================
-# Prima di applicare nuove regole, rimuovi quelle vecchie
-# Questo evita conflitti e accumulo di regole da esecuzioni precedenti
+# STEP 4: CLEAN EXISTING tc RULES
+# Before applying new rules, remove the old ones.
+# This prevents conflicts and the accumulation of rules from previous executions.
 
 echo "=== Cleaning old tc rules ==="
 
@@ -52,13 +44,11 @@ for iface in $(ip -o link show | awk -F': ' '{print $2}' | grep -v '^lo$'); do
     echo "  ✓ Cleaned $iface"
 done
 
-# ============================================================
-# STEP 5: APPLICA EMULAZIONE DI RETE (tc/netem)
-# ============================================================
+# STEP 5: APPLY NETWORK EMULATION (tc/netem)
 
 echo "=== Configuring network emulation ==="
 
-# Carica configurazione
+# Load configuration from file (if exists)
 source /network_rules.conf 2>/dev/null || {
     echo "No configuration file found, using baseline mode"
     BROKERS="none"
@@ -67,7 +57,7 @@ source /network_rules.conf 2>/dev/null || {
     CONSUMERS_G2="none"
 }
 
-# Funzione per applicare regole tc
+# Function to apply tc rules based on configuration
 apply_tc_rules() {
     local interface=$1
     local rules=$2
@@ -86,7 +76,7 @@ apply_tc_rules() {
     # Parse rules (formato: "delay:200ms:50ms")
     local netem_cmd="tc qdisc add dev $interface root netem"
     
-    # Sostituisci ',' con spazio per separare multiple regole
+    # Replace commas with spaces to handle multiple rules (es. "delay:200ms:50ms,loss:10%")
     rules=$(echo "$rules" | tr ',' ' ')
     
     for rule in $rules; do
@@ -101,18 +91,18 @@ apply_tc_rules() {
         esac
     done
     
-    # Applica il comando
+    # Apply the tc command
     eval "$netem_cmd"
     echo "  ✓ $network_name: $rules applied"
 }
 
-# Identifica interfacce
+# Identify interfaces for each network based on IP addresses
 IFACE_BROKERS=$(ip -o addr show | grep "172.20.10.254" | awk '{print $2}')
 IFACE_PRODUCERS=$(ip -o addr show | grep "172.20.20.254" | awk '{print $2}')
 IFACE_CONSUMERS_G1=$(ip -o addr show | grep "172.20.30.254" | awk '{print $2}')
 IFACE_CONSUMERS_G2=$(ip -o addr show | grep "172.20.40.254" | awk '{print $2}')
 
-# Applica regole
+# Apply tc rules for each network based on configuration
 apply_tc_rules "$IFACE_BROKERS" "$BROKERS" "BROKERS"
 apply_tc_rules "$IFACE_PRODUCERS" "$PRODUCERS" "PRODUCERS"
 apply_tc_rules "$IFACE_CONSUMERS_G1" "$CONSUMERS_G1" "CONSUMERS_G1"
@@ -122,9 +112,7 @@ echo ""
 echo "=== Network Emulator Ready ==="
 
 
-# ============================================================
-# STEP 6: MOSTRA INFORMAZIONI 
-# ============================================================
+# STEP 6: DISPLAY INFORMATION
 
 echo ""
 echo "=== Network Emulator Configuration Summary ==="
@@ -141,7 +129,7 @@ echo "  - CONSUMERS_G1: ${CONSUMERS_G1:-none}"
 echo "  - CONSUMERS_G2: ${CONSUMERS_G2:-none}"
 echo ""
 
-# Controlla se almeno una regola è attiva
+# Check if any emulation rules are active
 if [ "$BROKERS" != "none" ] || [ "$PRODUCERS" != "none" ] || \
    [ "$CONSUMERS_G1" != "none" ] || [ "$CONSUMERS_G2" != "none" ]; then
     echo "Status: ACTIVE EMULATION"
@@ -156,7 +144,5 @@ echo "=== Network Emulator is Ready! ==="
 echo ""
 
 
-# ============================================================
-# STEP 7: MANTIENI IL CONTAINER ATTIVO
-# ============================================================
+# STEP 7: KEEP THE CONTAINER RUNNING
 exec "$@"

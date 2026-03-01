@@ -7,9 +7,9 @@ PARTITION_COUNTS=(3 6 9 12)
 PAYLOAD_SIZE_BYTES=1000
 BATCH_SIZES=(10 30 50 70 100 120 150 170 190 210 230 250 280 300)
 WARMUP_DURATION=60
-EXPERIMENT_DURATION=60
+EXPERIMENT_DURATION=60 
 CONSUMER_WAIT=30
-N_RUNS=10 # Numero di esecuzioni per ogni configurazione
+N_RUNS=5 # number of repetitions per configuration
 
 progress_bar() {
     local duration=$1
@@ -50,16 +50,13 @@ echo "  - Repetitions per config: ${N_RUNS}"
 echo "  - Send mode: continuous (heavy load)"
 echo "=========================================="
 
-# Build delle immagini Docker
+# Build Docker images
 echo ""
 echo ">> Building Docker images..."
 docker compose build --quiet broker_1 broker_2 broker_3 producer_1 producer_2 consumer_1_g1 consumer_2_g1 consumer_1_g2 network_emulator kafka_ui > /dev/null 2>&1
 echo ">> Build completed!"
 
-# loop per ogni combinazione di PARTITION_COUNT e BATCH_SIZE
-experiment_count=0
-failed_experiments=0
-
+# Loop through partition counts and batch sizes
 for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
 
     TOPIC_NAME="test_${PARTITION_COUNT}_partitions"
@@ -70,7 +67,6 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
     echo "=========================================="
 
     for BATCH_SIZE in "${BATCH_SIZES[@]}"; do
-        experiment_count=$((experiment_count + 1))
 
         echo ""
         echo ">> Batch size: ${BATCH_SIZE}"
@@ -86,10 +82,10 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
             export RUN_ID="${RUN_ID}"
             export PAYLOAD_SIZE_BYTES="${PAYLOAD_SIZE_BYTES}"
             export NB_MESSAGES_PER_BATCH="${BATCH_SIZE}"
-            export TARGET_MESSAGES=999999999 # Numero elevato per modalità time-based
+            export TARGET_MESSAGES=999999999 # high value to ensure producers keep sending for the entire duration
             export EXPERIMENT_DURATION="${EXPERIMENT_DURATION}"
-            export SEND_MODE="continuous" # heavy load, senza rate limit
-            export LAMBDA_RATE=0 # non usato in continuous mode
+            export SEND_MODE="continuous" # heavy load, no rate limit
+            export LAMBDA_RATE=0 # not used in continuous mode
 
             docker compose down -v --remove-orphans > /dev/null 2>&1 || true
             sleep 2
@@ -100,7 +96,7 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
             sleep 3
             docker compose up -d broker_1 broker_2 broker_3 kafka_ui > /dev/null 2>&1
 
-            # Attendo che broker_1 risponda sulla porta interna 29092
+            # Wait for Kafka brokers to be ready
             until docker exec broker_1 bash -c "nc -z localhost 29092" >/dev/null 2>&1; do
                 sleep 10
             done
@@ -138,7 +134,7 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
             echo "  Waiting for consumers to finish processing..."
             sleep ${CONSUMER_WAIT}
 
-            # Aggiorna i file stats 
+            # Update stats with JMX and stop environment
             echo "  Updating stats with JMX..."
             python scripts/update_stats_with_jmx.py "$RUN_ID" "$TOPIC_NAME" > /dev/null 2>&1
             echo "  Stopping environment..."

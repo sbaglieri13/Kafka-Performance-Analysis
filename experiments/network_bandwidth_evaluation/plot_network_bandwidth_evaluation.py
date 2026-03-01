@@ -15,12 +15,12 @@ from utilities.confidence_interval import compute_ci
 
 def load_bandwidth_data() -> Tuple[Dict[int, List[Dict]]]: 
     """
-    Carica i file stats, raggruppa per (partition_count, batch_size),
-    applica IQR su throughput e overhead, poi IC al 95%.
-    Restituisce per ogni partition_count una lista di dict con:
+    Loads stats files, groups by (partition_count, batch_size),
+    applies IQR on throughput and overhead, then 95% CI.
+    Returns for each partition_count a list of dicts with:
         - batch_size (int)
-        - throughput (float): throughput medio post-IQR+IC [MB/s]
-        - overhead (float): overhead medio post-IQR+IC [%]
+        - throughput (float): mean throughput post-IQR+CI [MB/s]
+        - overhead (float): mean overhead post-IQR+CI [%]
     """
     stats_dir = Path(__file__).parent.parent.parent / "data/stats"
     stats_files = list(stats_dir.glob("*_stats.json"))
@@ -31,12 +31,12 @@ def load_bandwidth_data() -> Tuple[Dict[int, List[Dict]]]:
 
     print(f"Found {len(stats_files)} stats files")
 
-    # raggruppa i dati per (partition_count, batch_size)
+    # group by (partition_count, batch_size) with lists of throughput and overhead
     groups: Dict[Tuple[int, int], Dict[str, List[float]]] = defaultdict(
         lambda: {"throughput": [], "overhead": []}
     )
 
-    # carica i dati da ogni file e popola i gruppi
+    # load each stats file, extract partition_count, batch_size, throughput, overhead,
     for stats_file in stats_files:
         with open(stats_file) as f:
             data = json.load(f)
@@ -46,14 +46,14 @@ def load_bandwidth_data() -> Tuple[Dict[int, List[Dict]]]:
         throughput = data["kafka_metrics"]["throughput_mbps"]
         overhead = data["kafka_metrics"]["overhead_percentage"]
         
-        # aggiorna il dizionario dei gruppi per (partition_count, batch_size)
+        # update group for this (partition_count, batch_size)
         key = (partition_count, batch_size)
         groups[key]["throughput"].append(throughput)
         groups[key]["overhead"].append(overhead)
 
     data_by_partitions: Dict[int, List[Dict]] = defaultdict(list)
 
-    # per ogni gruppo applica IQR e IC, e organizza i dati per partition_count
+    # for each (partition_count, batch_size) group, apply IQR filter and compute CI for throughput and overhead
     for (partition_count, batch_size), values in groups.items():
         t_filtered, _ = tukey_iqr_filter(values["throughput"])
         o_filtered, _ = tukey_iqr_filter(values["overhead"])
@@ -67,14 +67,15 @@ def load_bandwidth_data() -> Tuple[Dict[int, List[Dict]]]:
             "overhead":   o_ci["mean"],
         })
 
-    # ordina i dati per batch_size all'interno di ogni partition_count
+    # sort by batch_size for each partition_count
     for pc in data_by_partitions:
         data_by_partitions[pc].sort(key=lambda d: d["batch_size"])
 
     return dict(data_by_partitions)
 
 
-def main():
+def plot_network_bandwidth_evaluation():
+    '''Plots throughput and overhead vs batch size for each partition count, with theoretical curves.'''
     data_by_partitions = load_bandwidth_data()
     
     if not data_by_partitions:
@@ -82,7 +83,10 @@ def main():
         return 1
 
     partition_counts = sorted(data_by_partitions.keys())
-    fig, axes = plt.subplots(1, len(partition_counts), figsize=(5 * len(partition_counts), 5), sharey=False)
+    fig, axes = plt.subplots(1, len(partition_counts), figsize=(5 * len(partition_counts), 5))
+    
+    if len(partition_counts) == 1:
+        axes = [axes]
     
     fig.suptitle('Network Bandwidth Evaluation: Throughput vs Overhead', fontsize=12, fontweight='bold')
 
@@ -103,27 +107,27 @@ def main():
         
         batch_smooth = np.linspace(1, max(batch_sizes), 300)
         
-        # Throughput prediction: funzione esponenziale saturante T(x) = c - a * exp(-b*x)
+        # Throughput prediction: exponential saturation T(x) = c - a * exp(-b * x)
         def throughput_model(x, a, b, c):
             return c - a * np.exp(-b * x)
         
-        # Fit sui dati reali
+        # Fit on real data
         params_t, _ = curve_fit(throughput_model, batch_sizes, throughputs, p0=[40, 0.1, 135])
         throughput_theory = throughput_model(batch_smooth, *params_t)     
         
-        # Overhead prediction: funzione esponenziale negativa O(x) = a * exp(-b*x) + c
+        # Overhead prediction: power-law decay O(x) = a * x^(-b) + c
         def overhead_model(x, a, b, c):
-            return a * np.exp(-b * x) + c
+            return a * np.power(x, -b) + c
                 
-        # Fit sui dati reali       
+        # Fit on real data 
         params_o, _ = curve_fit(overhead_model, batch_sizes, overheads, p0=[20, 0.1, 8])
         overhead_theory = overhead_model(batch_smooth, *params_o)
 
         # Plot
-        # Asse X
+        # Axis X: Batch size
         ax1.set_xlabel('Number of Messages per Batch', fontsize=12)
         
-        # Asse Y sinistro: Throughput
+        # Axis Y left: Throughput
         ax1.set_ylabel('Throughput of Packets (MB/s)', fontsize=12, color='blue')
         
         # Throughput prediction
@@ -135,7 +139,7 @@ def main():
         ax1.tick_params(axis='y', labelcolor='blue')
         ax1.grid(True, alpha=0.3)
         
-        # Asse Y destro: Overhead
+        # Asse Y right: Overhead
         ax2 = ax1.twinx()
         ax2.set_ylabel('Overhead (%)', fontsize=12, color='red')
         
@@ -147,7 +151,7 @@ def main():
         
         ax2.tick_params(axis='y', labelcolor='red')
         
-        # Info sul numero di partizioni
+        # Title with partition count
         ax1.text(0.5, 1.05, f'Partition Number = {partition_count}', transform=ax1.transAxes, fontsize=11, ha='center')
 
         if idx == 0:
@@ -157,13 +161,16 @@ def main():
     fig.legend(lines1 + lines2, labels1 + labels2, loc='lower center', bbox_to_anchor=(0.5, -0.05), ncol=4, frameon=True, fontsize=10)
     
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.18, wspace=0.3)  # wspace = spazio tra subplot
+    plt.subplots_adjust(bottom=0.18, wspace=0.3)  # add some space at the bottom for the legend and between subplots
     
     plots_dir = Path(__file__).parent / "plots"
     plots_dir.mkdir(parents=True, exist_ok=True)
     plt.savefig(plots_dir / "network_bandwidth_evaluation.png", dpi=300, bbox_inches='tight')
     
     print(f"\n✓ Plot saved!")
+    
+def main():
+    plot_network_bandwidth_evaluation()
 
 if __name__ == "__main__":
     main()

@@ -2,57 +2,44 @@
 
 set -e # "exit on error"
 
-# ============================================================
-# CONFIGURAZIONE ROUTE VERSO I BROKER (GROUP 1)
-# ============================================================ù
-
+# ROUTE CONFIGURATION TOWARD BROKERS (GROUP 1)
 if [ "$GROUP_ID" = "group_1" ]; then
-    # Aggiunge una route statica:
-    #   - Destinazione: 172.20.10.0/24 (rete dei broker)
-    #   - Gateway: 172.20.30.254 (IP del network emulator nella rete consumer G1)
-    # 
-    # NOTA: per raggiungere i broker, passa dal network emulator
-    
+    # Adds a static route:
+    #   - Destination: 172.20.10.0/24 (broker network)
+    #   - Gateway: 172.20.30.254 (network emulator IP in the Consumer G1 network)
+    #
+    # NOTE: to reach the brokers, traffic must go through the network emulator.
     ip route add 172.20.10.0/24 via 172.20.30.254
-    
     echo "Consumer Group 1 routing configured"
 fi
 
-# ============================================================
-# CONFIGURAZIONE ROUTE VERSO I BROKER (GROUP 2)
-# ============================================================
-
+# ROUTE CONFIGURATION TOWARD BROKERS (GROUP 2)
 if [ "$GROUP_ID" = "group_2" ]; then
-    # Aggiunge una route statica:
-    #   - Destinazione: 172.20.10.0/24 (rete dei broker)
-    #   - Gateway: 172.20.40.254 (IP del network emulator nella rete consumer G2)
-    # 
-    # NOTA: i due gruppi usano gateway DIVERSI (172.20.30.254 vs 172.20.40.254)
-    # Questo permette di applicare condizioni di rete DIVERSE per ogni gruppo
+    # Adds a static route:
+    #   - Destination: 172.20.10.0/24 (broker network)
+    #   - Gateway: 172.20.40.254 (network emulator IP in the Consumer G2 network)
     #
-    # NOTA: per raggiungere i broker, passa dal network emulator
+    # NOTE: the two groups use DIFFERENT gateways (172.20.30.254 vs 172.20.40.254).
+    # This allows applying DIFFERENT network conditions for each group.
+    #
+    # NOTE: to reach the brokers, traffic must go through the network emulator.
     
     ip route add 172.20.10.0/24 via 172.20.40.254
-    
     echo "Consumer Group 2 routing configured"
 fi
 
-# ============================================================
-# VERIFICA ROUTE CONFIGURATE (DEBUG)
-# ============================================================
+# CONFIGURED ROUTES VERIFICATION (DEBUG)
 ip route show
 
-# Output atteso per consumer group 1:
+# Expected output for Consumer Group 1:
 # default via 172.20.30.1 dev eth0
-# 172.20.10.0/24 via 172.20.30.254 dev eth0   
+# 172.20.10.0/24 via 172.20.30.254 dev eth0
 # 172.20.30.0/24 dev eth0 proto kernel scope link src 172.20.30.11
 
-# Output atteso per consumer group 2:
+# Expected output for Consumer Group 2:
 # default via 172.20.40.1 dev eth0
-# 172.20.10.0/24 via 172.20.40.254 dev eth0   
+# 172.20.10.0/24 via 172.20.40.254 dev eth0
 # 172.20.40.0/24 dev eth0 proto kernel scope link src 172.20.40.11
 
-# ============================================================
-# AVVIO CONSUMER
-# ============================================================
+# CONSUMER STARTUP
 exec python /app/consumer.py

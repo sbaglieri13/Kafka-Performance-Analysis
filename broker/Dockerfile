@@ -8,4 +8,5 @@ RUN chmod +x /configure_routing.sh
 
 ENTRYPOINT ["/configure_routing.sh"]
 
-# lasciamo come root, sarà poi l'entrypint a fare il drop di privilegi dopo aver configurato le route
+# We remain running as root; the entrypoint will later drop privileges
+# after configuring the routing rules.

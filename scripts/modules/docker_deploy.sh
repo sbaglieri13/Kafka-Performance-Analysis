@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-# ============================================================
-# AVVIO DEI SERVIZI DOCKER 
-# ============================================================
+# START DOCKER SERVICES 
 deploy_docker_environment() {
     echo "============================================="
     echo "Starting Docker Environment"
@@ -20,7 +18,7 @@ deploy_docker_environment() {
     
     echo ">> Waiting for brokers to be ready..."
     
-    # Attendo che broker_1 risponda sulla porta interna 29092
+    # Wait until the first broker is ready to accept connections on port 29092
     until docker exec broker_1 bash -c "nc -z localhost 29092" >/dev/null 2>&1; do
       sleep 10
       echo ">> Brokers not ready yet, trying again..."
@@ -46,7 +44,7 @@ deploy_docker_environment() {
     echo ">> Waiting for consumers to subscribe to topics..."
     sleep 10
     
-    # Verifica che i consumer siano effettivamente connessi al broker
+    # Wait until all consumers have logged that they subscribed to the topic
     until docker logs consumer_1_g1 2>&1 | grep -q "Subscribed to topic" && \
           docker logs consumer_2_g1 2>&1 | grep -q "Subscribed to topic" && \
           docker logs consumer_1_g2 2>&1 | grep -q "Subscribed to topic"; do

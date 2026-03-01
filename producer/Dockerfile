@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Installa iproute2 
+# Install iproute2 for network configuration
 RUN apt-get update && apt-get install -y iproute2 && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-# ============================================================
-# CONFIGURAZIONE DURATA ESPERIMENTO
-# ============================================================
+# EXPERIMENT DURATION CONFIGURATION
 configure_experiment_duration() {
     echo "============================================="
     echo "Experiment Duration Configuration"
@@ -17,7 +15,7 @@ configure_experiment_duration() {
         echo ""
         
         export EXPERIMENT_DURATION
-        export TARGET_MESSAGES="999999999" # valore alto per non limitare in base ai messaggi
+        export TARGET_MESSAGES="999999999" # high value to not limit based on message count
     else
         # Message-based mode
         read -p "Set target number of messages [default: 10000]: " TARGET_MESSAGES
@@ -27,19 +25,17 @@ configure_experiment_duration() {
         echo ""
         
         export TARGET_MESSAGES
-        export EXPERIMENT_DURATION="999999999"  # valore alto per non limitare in base al tempo
+        export EXPERIMENT_DURATION="999999999"  # high value to not limit based on time
     fi
 }
 
-# ============================================================
-# CONFIGURAZIONE TOPIC E PARAMETRI ESPERIMENTO
-# ============================================================
+# EXPERIMENT CONFIGURATION PARAMETERS
 configure_experiment_parameters() {
     echo "============================================="
     echo "Experiment Configuration"
     echo "============================================="
     
-    # Scelta topic (numero partizioni)
+    # Topic and partition configuration
     echo ""
     echo "Select Kafka topic (by number of partitions):"
     echo "  1) 3 partitions"
@@ -117,17 +113,17 @@ configure_experiment_parameters() {
         echo ">> LAMBDA_RATE=${LAMBDA_RATE} msg/s"
         echo ""
     else
-        LAMBDA_RATE=0  # non usato in continuous mode
+        LAMBDA_RATE=0  # not used in continuous mode
         echo ">> LAMBDA_RATE=N/A (continuous mode)"
         echo ""
     fi
     
-    # Componi RUN_ID
+    # Generate a unique run ID based on the configuration
     RUN_ID="${TOPIC_NAME}_NB_${NB_MESSAGES_PER_BATCH}_PS_${PAYLOAD_SIZE_BYTES}"
     echo ">> Run ID: ${RUN_ID}"
     echo ""
     
-    # Esporta tutte le variabili per docker-compose
+    # Export all configuration parameters as environment variables
     export TOPIC_NAME
     export PARTITION_COUNT
     export RUN_ID

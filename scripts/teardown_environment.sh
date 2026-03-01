@@ -34,6 +34,18 @@ else
     echo "   X files skipped"
 fi
 
+echo ""
+read -p ">> Delete latency report files? (y/n): " -n 1 -r
+echo ""
+
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo ">> Cleaning latency report files..."
+    rm -f ./experiments/latency_analysis/reports/latency_report_*.json
+    echo "   ✓ files deleted"
+else
+    echo "   X files skipped"
+fi
+
 echo "================================================="
 echo ">> Docker environment cleaned up successfully!"
 echo "================================================="
