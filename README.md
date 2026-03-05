@@ -149,7 +149,7 @@ dove:
 - $t^*_{n-1}$ è il valore critico della t-distribution con $n-1$ gradi di libertà
 
 Il valore rappresentativo usato nei plot è il punto centrale dell'intervallo:
-$$\text{representative\_point} = \frac{CI_{\text{lower}} + CI_{\text{upper}}}{2}$$
+$$\mathrm{representative\_point} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$$
 
 Si usa la **t-distribution di Student** anziché il test z perché il numero di campioni disponibili è ridotto (5 run per la latency analysis, 10 per gli altri
 esperimenti). Con campioni piccoli, la t-distribution produce intervalli più conservativi e quindi stime più accurate dell'incertezza reale, compensando la sottostima della deviazione standard campionaria tipica di $n$ piccoli.
@@ -314,7 +314,7 @@ dove:
 **Aggregazione multi-run:**
 Per ogni configurazione (λ, Nb, partizioni), i 5 run vengono aggregati con:
   - Filtro outlier: IQR Tukey sulla latency media di ogni run
-  - Stima: per ogni metrica viene calcolato l'intervallo di confidenza al 95% (t-distribution) sui run filtrati; il valore rappresentativo è il punto centrale dell'intervallo $representative\_point = \frac{ci\_{lower} + ci\_{upper}}{2}$
+  - Stima: per ogni metrica viene calcolato l'intervallo di confidenza al 95% (t-distribution) sui run filtrati; il valore rappresentativo è il punto centrale dell'intervallo $\mathrm{representative\_point} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$
 
 **Plot generati:** 
   1. `latency_vs_nb.png`: Latency (s) vs Nb, curve per λ, con regressione
@@ -405,7 +405,7 @@ python ./experiments/network_bandwidth_evaluation/plot_network_bandwidth_evaluat
 **Aggregazione multi-run:**
 Per ogni configurazione (partizioni, batch size), i run vengono aggregati con:
   - Filtro outlier: IQR Tukey su throughput per escludere run anomali
-  - Stima: intervallo di confidenza al 95% (t-distribution) sui run filtrati; il valore rappresentativo è $representative\_point = \frac{ci\_{lower} + ci\_{upper}}{2}$
+  - Stima: intervallo di confidenza al 95% (t-distribution) sui run filtrati; il valore rappresentativo è $\mathrm{representative\_point} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$
 
 **Modelli di fitting:**
   - Throughput (exponential saturation):
@@ -485,7 +485,7 @@ python ./experiments/correlation_analysis/plot_correlation_analysis.py
 **Aggregazione multi-run:**
 Per ogni configurazione (partizioni, batch size), i run vengono aggregati con:
   - Filtro outlier: IQR Tukey su Gs come anchor per escludere run anomali
-  - Stima: intervallo di confidenza al 95% (t-distribution) sui run filtrati; il valore rappresentativo è $representative\_point = \frac{ci\_{lower} + ci\_{upper}}{2}$
+  - Stima: intervallo di confidenza al 95% (t-distribution) sui run filtrati; il valore rappresentativo è $\mathrm{representative\_point} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$
 
 **Plot:**
 Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
