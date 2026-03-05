@@ -1,8 +1,10 @@
 # Kafka Performance Analysis
 
-[![Docker](https://img.shields.io/badge/Docker-blue.svg)](https://www.docker.com/)
-[![Python](https://img.shields.io/badge/Python-green.svg)](https://www.python.org/)
-[![Kafka](https://img.shields.io/badge/Kafka-orange.svg)](https://kafka.apache.org/)
+[![Docker](https://img.shields.io/badge/Docker-29.2.1-blue.svg)](https://www.docker.com/)
+[![Docker%20Compose](https://img.shields.io/badge/DockerCompose-v5.0.2-blue.svg)](https://docs.docker.com/compose/)
+[![Python](https://img.shields.io/badge/Python-3.11.14-green.svg)](https://www.python.org/)
+[![Kafka](https://img.shields.io/badge/Kafka-3.8.0-orange.svg)](https://kafka.apache.org/)
+
 
 ## 📖 Panoramica
 
