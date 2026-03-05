@@ -138,7 +138,9 @@ La cartella `utilities/` contiene moduli Python riutilizzati da tutti gli script
 ### `tukey_iqr.py` — Filtro outlier IQR Tukey
 Rimuove gli outlier da un array di valori usando il metodo di Tukey basato
 sull'Interquartile Range (IQR). Il criterio di esclusione è:
-$$\text{lower} = Q_1 - 1.5 \cdot IQR \qquad \text{upper} = Q_3 + 1.5 \cdot IQR$$
+
+$$\text{lower} = Q_1 - 1.5 \cdot IQR \qquad \text{upper} = Q_3 + 1.5 \cdot IQR$$.
+
 Tutti i valori che cadono fuori dall'intervallo `[lower, upper]` vengono considerati outlier e scartati. Questo filtro viene applicato tra run diversi della stessa configurazione.
 
 ### `confidence_interval.py` — Intervallo di Confidenza al 95%
@@ -207,18 +209,18 @@ Parametri richiesti:
   - Batch Size: messaggi per batch
   - Duration/Target: secondi o numero messaggi
 4. **Modalità generazione messaggi:**
-   - **Poisson** (`SEND_MODE=poisson`) — Rate-limited Poisson arrivals
-      - `LOW`  — λ=10 msg/s  → inter-arrival teorico ≈ 100ms
-      - `MEDIUM` — λ=50 msg/s  → inter-arrival teorico ≈ 20ms
-      - `HIGH` — λ=200 msg/s → inter-arrival teorico ≈ 5ms
-   - **Continuous** (`SEND_MODE=continuous`) — Heavy load, no rate limiting
+   - **Poisson** (`SEND_MODE=poisson`): Rate-limited Poisson arrivals
+      - `LOW`: λ=10 msg/s  → inter-arrival teorico ≈ 100ms
+      - `MEDIUM`: λ=50 msg/s  → inter-arrival teorico ≈ 20ms
+      - `HIGH`: λ=200 msg/s → inter-arrival teorico ≈ 5ms
+   - **Continuous** (`SEND_MODE=continuous`): Heavy load, no rate limiting
 
 
 Questo script:
 - Configura le regole di emulazione di rete (delay, packet loss e duplication)
 - Imposta la durata dell'esperimento o il target dei messaggi da generare 
 - Regola payload size, numero di messaggi per batch, ecc.
-- Imposta la modaità con la quale verranno generati i messaggi dai producer
+- Imposta la modalità con la quale verranno generati i messaggi dai producer
 - Effettua il build delle immagini Docker
 - Avvia tutti i servizi
 
@@ -246,16 +248,16 @@ python ./experiments/poisson_validation/plot_poisson_validation.py
 
 **Filtraggio degli outlier:** 
 Prima di generare i plot, gli inter-arrival times vengono filtrati per rimuovere eventi anomali. Il criterio di filtraggio è basato sulla distribuzione esponenziale teorica:
-Dato un livello di significatività `α = 0.01`, viene calcolata la soglia:
+dato un livello di significatività `α = 0.01`, viene calcolata la soglia:
 $$x_{thr} = \frac{-\ln(\alpha)}{\lambda}$$
-che rappresenta il valore oltre il quale la probabilità di osservare un inter-arrival time è inferiore all'1% secondo il modello esponenziale teorico. Tutti gli inter-arrival times superiori a `x_thr` vengono scartati come outlier.
+che rappresenta il valore oltre il quale la probabilità di osservare un inter-arrival time è inferiore all'1% secondo il modello esponenziale teorico. Tutti gli inter-arrival times superiori a $x_{thr}$ vengono scartati come outlier.
 
 **Plot generati:** 
 I tre subplot testano proprietà **distinte e complementari** del processo di Poisson.
   1. `Inter-arrival Distribution`: mostra la distribuzione dei tempi tra messaggi consecutivi sovrapposta alla Funzione di Densità di Probabilità teorica esponenziale $$f(t) = \lambda \cdot e^{-\lambda t}$$. Se il processo è correttamente Poisson, le barre dell'istogramma devono allinearsi alla curva teorica. Questo conferma che i messaggi vengono generati con inter-arrival times esponenzialmente distribuiti. Gli inter-arrival times sono calcolati come differenze consecutive del campo `send_timestamp_ms` dei file `producer_*_messages_recap.jsonl`.
 
   2. `Exponential Q-Q Plot`: il Q-Q plot confronta i quantili empirici degli inter-arrival times con i quantili teorici della distribuzione esponenziale. Se i punti si allineano sulla diagonale y = x (ideal), i dati seguono effettivamente una distribuzione esponenziale. 
-  3. `Message Count per Window`: mostra la distribuzione empirica del numero di messaggi ricevuti in finestre temporali di 1 secondo, sovrapposta alla PMF (Probability Mass Function) teorica di Poisson $$P(k) = \frac{\lambda^k \cdot e^{-\lambda}}{k!}$$
+  3. `Message Count per Window`: mostra la distribuzione empirica del numero di messaggi ricevuti in determinate finestre temporali, sovrapposta alla PMF (Probability Mass Function) teorica di Poisson $$P(k) = \frac{\lambda^k \cdot e^{-\lambda}}{k!}$$
   La finestra è scelta in modo che la **media teorica di messaggi per finestra sia sempre pari a 10** (`μ = λ · window = λ · 10/λ = 10`), indipendentemente dal valore di λ. Questo rende i plot confrontabili tra le diverse configurazioni di carico (Low, Medium, High), evitando che la distribuzione si sposti su scale diverse e renda difficile la visualizzazione e la comprensione del plot.
   Questa scelta è statisticamente valida poichè per la proprietà di scala del processo di Poisson, il numero di arrivi in un intervallo $T$ segue $\text{Poisson}(\mu = \lambda T)$. Fissare $T = 10/\lambda$ impone $\mu = 10$ per qualsiasi $\lambda$, preservando la forma della distribuzione e la correttezza del confronto con la PMF teorica.
 
@@ -300,7 +302,7 @@ python ./experiments/latency_analysis/plot_latency_analysis.py
   - Durata: 60s produzione + 30s warmup
   - Modalità di generazione messaggi: Poisson
 
-**Durata media in ore dell'intero esperimento:** ~52 ore
+**Durata media dell'intero esperimento:** ~52 ore
 
 **Metriche calcolate:**
 **Latency** = `receive_timestamp_ms - producer_send_timestamp_ms`
@@ -319,18 +321,8 @@ Per ogni configurazione (λ, Nb, partizioni), i 5 run vengono aggregati con:
   - Stima: per ogni metrica viene calcolato l'intervallo di confidenza al 95% (t-distribution) sui run filtrati; il valore rappresentativo è il punto centrale dell'intervallo $\mathrm{representative\_point} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$
 
 **Plot generati:** 
-  1. `latency_vs_nb.png`: Latency (s) vs Nb, curve per λ, con regressione
-     adattiva e R²:
-     - **Regressione lineare** $L = a \cdot N_b + c$ quando R² ≥ 0.95, che descrive il regime in cui la latenza cresce quasi linearmente con il batch size perché il termine dominante è il tempo di riempimento
-       del buffer $T_{buffer}$.
-     - **Regressione quadratica** $L = a \cdot N_b^2 + b \cdot N_b + c$ (label: `quadratic fit`) quando R² < 0.95, tipicamente per λ molto bassi e molti topic partitions. In questo caso il sistema entra in un regime di saturazione / accodamento e l’aumento di latenza con Nb diventa super-lineare.
-  2. `latency_vs_lambda.png`: Latency (s) vs λ (scala log), curve per Nb, con
-     fit **power-hyperbolic**:
-     $$L(\lambda) = \frac{a}{\lambda^b} + c$$
-     Questo modello generalizza l’iperbole classica $\frac{a}{\lambda} + c$ aggiungendo l’esponente $b$: per Nb piccoli i dati sono compatibili con $b \approx 1$, mentre per Nb grandi le curve diventano più piatte $(b < 1)$ perché,
-     oltre una certa soglia di λ, la latenza è dominata da $T_{broker}$ e $T_{consumer}$ e smette di decrescere in modo puramente iperbolico.
-     Nel pannello con **P=12** questo effetto è particolarmente visibile: le curve per Nb elevati non sono più perfettamente aderenti al modello power-hyperbolic e mostrano un leggero disallineamento tra punti e prediction. Questo non è un errore di fitting ma la manifestazione grafica del passaggio al regime timeout-dominated indotto da `linger_ms`.
-
+  1. `latency_vs_nb.png`: Latency (s) vs Nb, curve per λ, con regressione adattiva e R²
+  2. `latency_vs_lambda.png`: Latency (s) vs λ (scala log), curve per Nb, con fit **power-hyperbolic**
   3. `latency_heatmap_of_latency_vs_nb.png`: Heatmap λ × Nb con sfumatura di colore per latency media
   4. `latency_boxplot_of_latency_vs_nb.png`: Boxplot latency vs Nb, griglia partizioni × λ
   5. `latency_partition_ratio_table.png`: Tabella del rapporto della latency al variare del numero di partizioni, per ogni configurazione (λ, Nb)
@@ -359,17 +351,34 @@ Per ogni configurazione (λ, Nb, partizioni), i 5 run vengono aggregati con:
 
     ![Latency Analysis 3](./experiments/latency_analysis/plots/latency_ratio_vs_partition_number.png)
 
+    Il plot mostra il **rapporto della latenza** rispetto a P=3 per ogni (λ, Nb). In regime normale i valori si avvicinano sistematicamente a **×2** (P=6), **×3** (P=9), **×4** (P=12) perché:
+    Con P partizioni il producer mantiene **P buffer interni paralleli** (uno per partizione). A parità di λ, il flusso di messaggi si distribuisce uniformemente tra i buffer: ogni buffer riceve solo **λ/P msg/s**.
+    Il tempo di riempimento di un batch da Nb messaggi diventa:
+    $T_{buffer} = \frac{Nb}{\lambda/P} = \frac{Nb \cdot P}{\lambda}$. La latenza **scala con P**. 
+    
+    Per λ=10 e **Nb≥30**, i ratio collassano verso ×1.7-1.8 invece di ×4. Qui λ è così basso che i batch **non si riempiono mai entro `linger_ms = 30000 ms`**. L'invio avviene per timeout con batch parzialmente pieni, rendendo la latenza indipendente da P (dominata dal timeout fisso).
+
   - **`Latency vs λ`**: 
 
     ![Latency Analysis 4](./experiments/latency_analysis/plots/latency_vs_lambda.png)
+
+    Latency (s) vs λ (scala log), curve per Nb, con fit **power-hyperbolic**:
+    $$L(\lambda) = \frac{a}{\lambda^b} + c$$
+     
+    Questo modello generalizza l’iperbole classica $\frac{a}{\lambda} + c$ aggiungendo l’esponente $b$: per Nb piccoli i dati sono compatibili con $b \approx 1$, mentre per Nb grandi le curve diventano più piatte $(b < 1)$ perché, oltre una certa soglia di λ, la latenza è dominata da $T_{broker}$ e $T_{consumer}$ e smette di decrescere in modo puramente iperbolico.
+    Nel plot con **P=12** questo effetto è particolarmente visibile: le curve per Nb elevati non sono più perfettamente aderenti al modello power-hyperbolic e mostrano un leggero disallineamento tra punti e prediction. Questo non è un errore di fitting ma la manifestazione grafica del passaggio al regime timeout-dominated indotto da `linger_ms`.
 
   - **`Latency vs Nb`**: 
 
     ![Latency Analysis 5](./experiments/latency_analysis/plots/latency_vs_nb.png)
 
+    Latency (s) vs Nb, curve per λ, con regressione adattiva e R²:
+     - **Regressione lineare** $L = a \cdot N_b + c$ quando R² ≥ 0.95, che descrive il regime in cui la latenza cresce quasi linearmente con il batch size perché il termine dominante è il tempo di riempimento del buffer $T_{buffer}$.
+     - **Regressione quadratica** $L = a \cdot N_b^2 + b \cdot N_b + c$ (label: `quadratic fit`) quando R² < 0.95, tipicamente per λ molto bassi e molti topic partitions. In questo caso il sistema entra in un regime di saturazione / accodamento e l’aumento di latenza con Nb diventa super-lineare.
+
 #### Confronto tra heavy load e Poisson
 
-Nel caso **heavy load** (modalità `continuous` usata negli altri esperimenti), il producer genera messaggi a massimo throughput; il flusso in ingresso è sufficientemente alto da riempire i batch ben prima della scadenza di `linger_ms = 30000 ms`. In questo regime il sistema è **abbastanza performante** da non incontrare il limite imposto da `linger_ms`, e i batch vengono inviati praticamente sempre a capacità massima.
+Nel caso **heavy load**, il producer genera messaggi a massimo throughput; il flusso in ingresso è sufficientemente alto da riempire i batch ben prima della scadenza di `linger_ms = 30000 ms`. In questo regime il sistema è **abbastanza performante** da non incontrare il limite imposto da `linger_ms`, e i batch vengono inviati praticamente sempre a capacità massima.
 
 La modalità **Poisson** permette invece di esplorare anche scenari di carico parziale: quando $\lambda$ è abbastanza grande da riempire un batch entro `linger_ms`, la latenza segue i modelli teorici basati su $T_{buffer}$ (fit lineare in funzione di Nb, power-hyperbolic in funzione di λ). Quando invece $\frac{\lambda}{P}$ è così basso da non riuscire a riempire il batch in tempo, si osserva un cambio di regime: i batch vengono inviati anticipatamente per scadenza del timer e la latenza si avvicina a `linger_ms`, diventando poco sensibile alle variazioni di Nb e di P.
 
@@ -392,22 +401,22 @@ python ./experiments/network_bandwidth_evaluation/plot_network_bandwidth_evaluat
   - Target messages: 50K
   - Modalità di generazione messaggi: Heavy mode
 
-**Durata media in ore dell'intero esperimento:** ~40 ore
+**Durata media dell'intero esperimento:** ~40 ore
 
 **Metriche calcolate:**
   1. Kafka Total Bytes (JMX):
   **kafka_total_bytes** = $BytesInPerSec$
   2. Kafka Overhead:
-  **kafka_overhead_bytes** = $kafka\_overhead\_bytes = kafka\_total\_bytes - payload\_bytes$
+  **kafka_overhead_bytes** = $kafkaOverheadBytes = kafkaTotalBytes - payloadBytes$
   3. Overhead Percentage:
-  **overhead_%** = $\frac{kafka\_overhead\_bytes}{kafka\_total\_bytes} \times 100$
+  **overhead_%** = $\frac{kafkaOverheadBytes}{kafkaTotalBytes} \times 100$
   4. Throughput:
-  **throughput_kbps** = $\frac{kafka\_total\_bytes / 1024}{transmission\_time\_seconds}$
+  **throughput_kbps** = $\frac{kafkaTotalBytes / 1024}{transmissionTimeSeconds}$
 
 **Aggregazione multi-run:**
 Per ogni configurazione (partizioni, batch size), i run vengono aggregati con:
   - Filtro outlier: IQR Tukey su throughput per escludere run anomali
-  - Stima: intervallo di confidenza al 95% (t-distribution) sui run filtrati; il valore rappresentativo è $\mathrm{representative\_point} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$
+  - Stima: intervallo di confidenza al 95% (t-distribution) sui run filtrati; il valore rappresentativo è $\mathrm{representativePoint} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$
 
 **Modelli di fitting:**
   - Throughput (exponential saturation):
@@ -446,17 +455,17 @@ python ./experiments/correlation_analysis/plot_correlation_analysis.py
   - Durata: 60s produzione + 30s warmup
   - Modalità di generazione messaggi: Heavy mode
 
-**Durata media in ore dell'intero esperimento:** ~23 ore
+**Durata media dell'intero esperimento:** ~23 ore
 
 **Formule:**
 
 1. **Serialized Message Size (Sm):**
    
-   **Sm** = $len(key\_bytes) + len(value\_bytes)$
+   **Sm** = $len(keyBytes) + len(valueBytes)$
 
 2. **Serialized Batch Size (Sb):**
    
-   **Sb** = $\frac{S_m \cdot N_b + batch\_header\_size}{compression\_ratio}$
+   **Sb** = $\frac{S_m \cdot N_b + batchHeaderSize}{compressionRatio}$
 
    **Dove:**
    - `Nb` = numero messaggi per batch  
@@ -465,13 +474,13 @@ python ./experiments/correlation_analysis/plot_correlation_analysis.py
 
 3. **Group Send Interval (Gs):**
    
-   **Gs** = $timestamp\_{current\_group} - timestamp\_{previous\_group}$
+   **Gs** = $timestampCurrentGroup - timestampPreviousGroup$
 
    Un *gruppo* consiste di $P$ batch consecutivi (dove $P$ = partizioni per broker).
 
 4. **Request Size (Sr):**
    
-   **Sr** = $S_b \cdot P + packet\_header\_size$
+   **Sr** = $S_b \cdot P + packetHeaderSize$
 
    **Dove:**
    - `P` = numero di partizioni gestite da un broker  
@@ -479,7 +488,7 @@ python ./experiments/correlation_analysis/plot_correlation_analysis.py
 
 5. **Packet Header Size:**
    
-   **packet_header_size** = $\frac{kafka\_total\_bytes - \sum (S_b \cdot num\_batches)}{total\_batches}$
+   **packet_header_size** = $\frac{kafkaTotalBytes - \sum (S_b \cdot numBatches)}{totalBatches}$
 
    Dove `kafka_total_bytes` è raccolto via JMX (`BytesInPerSec`).
 
@@ -487,7 +496,7 @@ python ./experiments/correlation_analysis/plot_correlation_analysis.py
 **Aggregazione multi-run:**
 Per ogni configurazione (partizioni, batch size), i run vengono aggregati con:
   - Filtro outlier: IQR Tukey su Gs come anchor per escludere run anomali
-  - Stima: intervallo di confidenza al 95% (t-distribution) sui run filtrati; il valore rappresentativo è $\mathrm{representative\_point} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$
+  - Stima: intervallo di confidenza al 95% (t-distribution) sui run filtrati; il valore rappresentativo è $\mathrm{representativePoint} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$
 
 **Plot:**
 Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
@@ -805,7 +814,7 @@ La **latency analysis** misura il tempo end-to-end tra l'invio del messaggio dal
 All'aumentare di Nb si osserva un **incremento quasi lineare della latenza media**. Questo comportamento è legato al fatto che con batch più grandi, il producer trattiene i messaggi in buffer per un tempo più lungo prima di inviarli, aumentando il tempo
 di attesa complessivo. La regressione lineare stimata nei plot conferma questo andamento con coefficienti R² elevati.
 L'effetto è particolarmente marcato per **λ bassi**: con rate ridotti, i messaggi arrivano lentamente e il buffer impiega più tempo a riempirsi, quindi anche piccoli incrementi di Nb si traducono in aumenti significativi di latenza (rette con pendenza
-ripida). Al crescere di λ, i batch si riempiono più rapidamente e la pendenza si riduce progressivamente: la latenza cresce ancora linearmente con Nb, ma in modo molto più contenuto.
+ripida).  Questo è vero fin quando lambda è in grado di riempire i batch entro linger.ms, dopodiché si entra in saturazione e la latency si stabilizza. Al crescere di λ, i batch si riempiono più rapidamente e la pendenza si riduce progressivamente: la latenza cresce ancora linearmente con Nb, ma in modo molto più contenuto.
 
 #### Effetto del lambda rate (λ)
 
