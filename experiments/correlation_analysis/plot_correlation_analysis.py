@@ -60,16 +60,19 @@ def load_batch_metrics_data() -> Tuple[Dict[int, List[Dict]]]:
         Sr_arr = np.array(values["Sr"])
         Gs_arr = np.array(values["Gs"])
 
+        # Apply Tukey's IQR filter to remove outliers
         Sr_filtered, _ = tukey_iqr_filter(Sr_arr)
         Gs_filtered, _ = tukey_iqr_filter(Gs_arr)
+        
+        # Compute the confidence interval for the filtered data
         Sr_ci = compute_ci(Sr_filtered)
         Gs_ci = compute_ci(Gs_filtered)
 
         # update the data structure to be organized by partition_count
         data_by_partitions[partition_count].append({
             "batch_size": batch_size,
-            "Sr_mean":    Sr_ci["mean"],
-            "Gs_mean":    Gs_ci["mean"],
+            "Sr_mean":    Sr_ci["representative_point"],
+            "Gs_mean":    Gs_ci["representative_point"],
             "Sr_n":       Sr_ci["n"],
             "Gs_n":       Gs_ci["n"],
         })

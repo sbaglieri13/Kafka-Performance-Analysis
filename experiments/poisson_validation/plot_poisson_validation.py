@@ -138,10 +138,10 @@ def plot_poisson_validation(data_dir: Path, lambda_rate: float, load_label: str,
     plt.tight_layout()
     
     output_dir.mkdir(parents=True, exist_ok=True)
-    out_file = output_dir / "poisson_validation.png"
+    out_file = output_dir / f"poisson_validation_lambda_rate_{int(lambda_rate)}.png"
     plt.savefig(out_file, dpi=300, bbox_inches='tight')
     plt.close()
-    print(f"✓ Saved: {out_file}")
+    print(f"✓ Plot saved!")
 
 def main():
     data_dir = Path(__file__).parent.parent.parent / "data"

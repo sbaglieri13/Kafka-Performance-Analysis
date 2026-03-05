@@ -3,13 +3,14 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
+# Configuration parameters
 PARTITION_COUNTS=(3 6 9 12)
 PAYLOAD_SIZE_BYTES=1000
 BATCH_SIZES=(10 30 50 70 100 120 150 170 190 210 230 250 280 300)
 WARMUP_DURATION=60
-EXPERIMENT_DURATION=60 
+EXPERIMENT_DURATION=60 # duration of the active message flow phase (in seconds)
 CONSUMER_WAIT=30
-N_RUNS=5 # number of repetitions per configuration
+N_RUNS=10 # number of repetitions per configuration
 
 progress_bar() {
     local duration=$1
@@ -53,7 +54,7 @@ echo "=========================================="
 # Build Docker images
 echo ""
 echo ">> Building Docker images..."
-docker compose build --quiet broker_1 broker_2 broker_3 producer_1 producer_2 consumer_1_g1 consumer_2_g1 consumer_1_g2 network_emulator kafka_ui > /dev/null 2>&1
+docker compose build --quiet broker_1 broker_2 broker_3 producer_1 producer_2 consumer_1_g2 network_emulator kafka_ui > /dev/null 2>&1
 echo ">> Build completed!"
 
 # Loop through partition counts and batch sizes
@@ -113,12 +114,10 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
                 echo "   !!! Warning: TOPIC_NAME or PARTITION_COUNT not set, skipping topic creation !!!"
             fi
 
-            docker compose up -d consumer_1_g1 consumer_2_g1 consumer_1_g2 > /dev/null 2>&1
+            docker compose up -d consumer_1_g2 > /dev/null 2>&1
             sleep 10
 
-            until docker logs consumer_1_g1 2>&1 | grep -q "Subscribed to topic" && \
-                  docker logs consumer_2_g1 2>&1 | grep -q "Subscribed to topic" && \
-                  docker logs consumer_1_g2 2>&1 | grep -q "Subscribed to topic"; do
+            until docker logs consumer_1_g2 2>&1 | grep -q "Subscribed to topic"; do
                 sleep 2
             done
 

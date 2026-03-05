@@ -6,11 +6,12 @@ cd "$(dirname "$0")/../.."
 # Source the Docker deployment function
 source ./scripts/modules/docker_deploy.sh
 
+# Configuration parameters
 PARTITION_COUNTS=(3 6 9 12)
 PAYLOAD_SIZE_BYTES=1000
 TARGET_MESSAGES=50000
 BATCH_SIZES=(1 2 3 4 5 6 7 8 9 10 12 13 15 16 18 20 21 23 24 26 29 30 32 35 37 40 41 45 49 50)
-N_RUNS=5  # number of repetitions per configuration
+N_RUNS=10  # number of repetitions per configuration 
 
 STATS_DIR="./data/stats"
 
@@ -25,7 +26,7 @@ echo "=========================================="
 # Build Docker images
 echo ""
 echo ">> Building Docker images..."
-docker compose build --quiet broker_1 broker_2 broker_3 producer_1 consumer_1_g1 consumer_2_g1 consumer_1_g2 network_emulator kafka_ui > /dev/null 2>&1
+docker compose build --quiet broker_1 broker_2 broker_3 producer_1 producer_2 consumer_1_g1 consumer_2_g1 consumer_1_g2 network_emulator kafka_ui > /dev/null 2>&1
 echo ">> Build completed!"
 
 for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
@@ -73,7 +74,8 @@ for PARTITION_COUNT in "${PARTITION_COUNTS[@]}"; do
             ELAPSED=0
 
             while [[ $ELAPSED -lt $TIMEOUT ]]; do
-                if [[ -f "${STATS_DIR}/producer_1_${RUN_ID}_stats.json" ]]; then
+                if [[ -f "${STATS_DIR}/producer_1_${RUN_ID}_stats.json" && \
+                    -f "${STATS_DIR}/producer_2_${RUN_ID}_stats.json" ]]; then
                     echo "  ✓ Stats files created!"
                     break
                 fi

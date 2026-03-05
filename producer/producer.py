@@ -29,12 +29,14 @@ def make_message() -> dict:
     """Generates the payload and an incremental key."""
     key     = str(next(key_counter)) # incremental key as string
     message = ''.join(random.choices(string.ascii_lowercase, k=payload_size_bytes)) # random string of specified byte size
+    return {"key": key, "message": message}
 
 # Function to simulate Poisson arrivals
 def poisson_sleep():
     """Waits for an exponential inter-arrival time with mean 1/lambda_rate seconds to simulate a Poisson arrival process."""
     interval = np.random.exponential(1.0 / lambda_rate)
     time.sleep(interval)
+    
     
 linger_ms = 30000 # To avoid sending incomplete batches too early, while allowing sufficient time to complete batches even at high lambda values.
 

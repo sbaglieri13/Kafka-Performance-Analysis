@@ -66,7 +66,7 @@ def aggregate(df: pd.DataFrame) -> pd.DataFrame:
         for metric in metrics:
             vals = group_filtered[metric].values
             ci = compute_ci(vals)
-            row[metric] = ci["mean"] # mean
+            row[metric] = ci["representative_point"] # representative point (midpoint of CI)
             row[f"{metric}_ci_half"] = ci["ci_half"] # CI 95% t-distribution
 
         # alias for compatibility with plotting functions
@@ -84,13 +84,22 @@ def plot_latency_vs_nb(agg: pd.DataFrame):
     lambda_values = sorted(agg["lambda"].unique())
 
     fig, axes = plt.subplots(1, len(partition_counts), figsize=(5 * len(partition_counts), 5))
-    axes = axes.flatten()
+    if len(partition_counts) == 1:
+        axes = [axes]  
+    else:
+        axes = axes.flatten()
 
     colors = plt.cm.tab10.colors
 
     # Simple linear model: latency = a * Nb + c
     def linear_model(x, a, c):
         return a * x + c
+    
+    # Quadratic model: latency = a * Nb^2 + b * Nb + c
+    def quadratic_model(x, a, b, c):
+        return a * x**2 + b * x + c
+
+    R2_THRESHOLD = 0.95  # below this, fallback to quadratic
 
     for idx, parts in enumerate(partition_counts):
         ax = axes[idx]
@@ -116,21 +125,34 @@ def plot_latency_vs_nb(agg: pd.DataFrame):
                 )
                 x_fit = np.linspace(x.min(), x.max(), 400)
                 y_fit = linear_model(x_fit, *popt)
-                
-                # Calculate R² for the linear fit
+
                 residuals = y - linear_model(x, *popt)
                 ss_res = np.sum(residuals**2)
                 ss_tot = np.sum((y - np.mean(y))**2)
                 r_squared = 1 - ss_res / ss_tot if ss_tot > 0 else 1.0
-                ax.plot(x_fit, y_fit, color=color, linestyle='--', linewidth=2, alpha=0.5, label=f"λ={lam}  R²={r_squared:.3f}")
+
+                if r_squared < R2_THRESHOLD and len(x) >= 3:
+                    popt2, _ = curve_fit(
+                        quadratic_model, x, y,
+                        p0=[0, y[-1] / x[-1], y[0]],
+                        maxfev=5000,
+                    )
+                    y_fit = quadratic_model(x_fit, *popt2)
+                    residuals2 = y - quadratic_model(x, *popt2)
+                    ss_res2 = np.sum(residuals2**2)
+                    r_squared2 = 1 - ss_res2 / ss_tot if ss_tot > 0 else 1.0
+                    ax.plot(x_fit, y_fit, color=color, linestyle='--', linewidth=2, alpha=0.5, label=f"λ={lam}  R²={r_squared2:.3f} (quadratic fit)")
+                else:
+                    ax.plot(x_fit, y_fit, color=color, linestyle='--', linewidth=2, alpha=0.5, label=f"λ={lam}  R²={r_squared:.3f}")
             else:
                 ax.plot(x, y, color=color, linestyle='--', linewidth=2, alpha=0.5, label=f"λ={lam}")
+
 
         ax.set_title(f"Partition number = {parts}", fontsize=8, fontweight="bold")
         ax.set_xlabel("Number of Messages per Batch", fontsize=8)
         ax.set_ylabel("Latency (s)", fontsize=8)
         ax.tick_params(axis='both', labelsize=7)
-        ax.legend(title="λ (msg/s)", fontsize=7, title_fontsize=8)
+        ax.legend(title="λ (msg/s)", fontsize=6, title_fontsize=7, loc="upper left")
         ax.grid(True, alpha=0.3)
 
     for idx in range(len(partition_counts), len(axes)):
@@ -225,9 +247,9 @@ def plot_latency_vs_lambda(agg: pd.DataFrame):
         for i, nb in enumerate(nb_sample)
     }
 
-    # hyperbolic model
-    def hyperbolic(x, a, c):
-        return a / x + c
+    # power hyperbolic model
+    def power_hyperbolic(x, a, b, c):
+        return a / (x ** b) + c
 
     for idx, parts in enumerate(partition_counts):
         ax = axes[idx]
@@ -246,13 +268,13 @@ def plot_latency_vs_lambda(agg: pd.DataFrame):
 
             if len(x) >= 4:
                 popt, _ = curve_fit(
-                    hyperbolic, x, y,  
-                    p0=[y.mean() * x.mean(), y.min()], 
+                    power_hyperbolic, x, y,
+                    p0=[y[0] * x[0], 1.0, y[-1]],
                     maxfev=5000,
-                    bounds=([0, 0], [np.inf, np.inf]),
+                    bounds=([0, 0.1, 0], [np.inf, 2.0, np.inf]),
                 )
                 x_fit = np.linspace(x.min(), x.max(), 400)
-                y_fit = hyperbolic(x_fit, *popt) 
+                y_fit = power_hyperbolic(x_fit, *popt)
                 ax.plot(x_fit, y_fit, color=color, label=f"Nb={nb}")
             else:
                 ax.plot(x, y, color=color, alpha=0.5, label=f"Nb={nb}")
@@ -263,7 +285,7 @@ def plot_latency_vs_lambda(agg: pd.DataFrame):
         ax.set_ylabel("Latency (s)", fontsize=8)
         ax.set_xscale("log")
         ax.set_xticks(lambda_values)
-        ax.tick_params(axis='both', labelsize=7)
+        ax.tick_params(axis='both', labelsize=7, rotation=45)
         ax.get_xaxis().set_major_formatter(ticker.ScalarFormatter())
         ax.legend(title="Number of Messages per Batch", fontsize=7, loc="upper right", title_fontsize=8)
         ax.grid(True, alpha=0.3)
@@ -293,14 +315,13 @@ def plot_latency_vs_lambda(agg: pd.DataFrame):
 
             if len(x) >= 4:
                 popt, _ = curve_fit(
-                    hyperbolic,
-                    x, y,
-                    p0=[y.mean() * x.mean(), y.min()],
+                    power_hyperbolic, x, y,
+                    p0=[y[0] * x[0], 1.0, y[-1]],
                     maxfev=5000,
-                    bounds=([0, 0], [np.inf, np.inf]),
+                    bounds=([0, 0.1, 0], [np.inf, 2.0, np.inf]),
                 )
                 x_fit = np.linspace(x.min(), x.max(), 300)
-                y_fit = hyperbolic(x_fit, *popt)
+                y_fit = power_hyperbolic(x_fit, *popt)
                 axins.plot(x_fit, y_fit, color=color, linewidth=1.2)
             else:
                 axins.plot(x, y, color=color, linewidth=1.2)
@@ -335,14 +356,13 @@ def plot_latency_vs_lambda(agg: pd.DataFrame):
 
             if len(x) >= 4:
                 popt, _ = curve_fit(
-                    hyperbolic,
-                    x, y,
-                    p0=[y.mean() * x.mean(), y.min()],
+                    power_hyperbolic, x, y,
+                    p0=[y[0] * x[0], 1.0, y[-1]],
                     maxfev=5000,
-                    bounds=([0, 0], [np.inf, np.inf]),
+                    bounds=([0, 0.1, 0], [np.inf, 2.0, np.inf]),
                 )
                 x_fit = np.linspace(x.min(), x.max(), 200)
-                y_fit = hyperbolic(x_fit, *popt)
+                y_fit = power_hyperbolic(x_fit, *popt)
                 axins2.plot(x_fit, y_fit, color=color, linewidth=1.0)
 
         x_min, x_max = min(x), max(x)

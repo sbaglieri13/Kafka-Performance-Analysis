@@ -62,36 +62,50 @@ apply_tc_rules() {
     local interface=$1
     local rules=$2
     local network_name=$3
-    
+
     if [ "$rules" = "none" ] || [ -z "$rules" ]; then
         echo "  $network_name: no emulation"
         return
     fi
-    
+
     if [ -z "$interface" ]; then
         echo "  $network_name: interface not found"
         return
     fi
-    
+
     # Parse rules (formato: "delay:200ms:50ms")
     local netem_cmd="tc qdisc add dev $interface root netem"
     
     # Replace commas with spaces to handle multiple rules (es. "delay:200ms:50ms,loss:10%")
     rules=$(echo "$rules" | tr ',' ' ')
-    
+
     for rule in $rules; do
         local rule_type=$(echo "$rule" | cut -d':' -f1)
-        
+
         case $rule_type in
             delay)
                 local delay_val=$(echo "$rule" | cut -d':' -f2)
                 local jitter_val=$(echo "$rule" | cut -d':' -f3)
+                local dist_val=$(echo "$rule" | cut -d':' -f4)
                 netem_cmd="$netem_cmd delay $delay_val $jitter_val"
+                # If distribution is specified (e.g., "normal"), add it to the command
+                if [ -n "$dist_val" ]; then
+                    netem_cmd="$netem_cmd distribution $dist_val"
+                fi
+                ;;
+            loss)
+                local loss_val=$(echo "$rule" | cut -d':' -f2)
+                netem_cmd="$netem_cmd loss $loss_val"
+                ;;
+            dup)
+                local dup_val=$(echo "$rule" | cut -d':' -f2)
+                netem_cmd="$netem_cmd duplicate $dup_val"
                 ;;
         esac
     done
-    
+
     # Apply the tc command
+    echo "DEBUG CMD: $netem_cmd"
     eval "$netem_cmd"
     echo "  ✓ $network_name: $rules applied"
 }

@@ -3,6 +3,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 
+# Configuration parameters
 PARTITION_COUNTS=(3 6 9 12)
 LAMBDA_RATES=(10 50 100 200 500 800 1000)
 NB_VALUES=(1 5 10 15 20 25 30 40 50)

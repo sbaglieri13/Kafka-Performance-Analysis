@@ -57,14 +57,38 @@ def load_bandwidth_data() -> Tuple[Dict[int, List[Dict]]]:
     for (partition_count, batch_size), values in groups.items():
         t_filtered, _ = tukey_iqr_filter(values["throughput"])
         o_filtered, _ = tukey_iqr_filter(values["overhead"])
+        
+        # check if all values were removed by IQR filter, if so skip this group and print a warning
+        if len(t_filtered) == 0:
+            print(f"\nALL THROUGHPUT REMOVED by IQR")
+            print(f"Partition={partition_count}, Batch={batch_size}")
+            continue
+
+        # check if all values were removed by IQR filter, if so skip this group and print a warning
+        if len(o_filtered) == 0:
+            print(f"\nALL OVERHEAD REMOVED by IQR")
+            print(f"Partition={partition_count}, Batch={batch_size}")
+            continue
 
         t_ci = compute_ci(t_filtered)
         o_ci = compute_ci(o_filtered)
+        
+        # check if CI returned None (can happen if only 1 value after IQR), if so skip this group and print a warning
+        if t_ci["representative_point"] is None:
+            print(f"\nCI returned None (Throughput)")
+            print(f"Partition={partition_count}, Batch={batch_size}")
+            continue
+
+        # check if CI returned None (can happen if only 1 value after IQR), if so skip this group and print a warning
+        if o_ci["representative_point"] is None:
+            print(f"\nCI returned None (Overhead)")
+            print(f"Partition={partition_count}, Batch={batch_size}")
+            continue
 
         data_by_partitions[partition_count].append({
             "batch_size": batch_size,
-            "throughput": t_ci["mean"],
-            "overhead":   o_ci["mean"],
+            "throughput": t_ci["representative_point"],
+            "overhead":   o_ci["representative_point"],
         })
 
     # sort by batch_size for each partition_count
@@ -161,7 +185,7 @@ def plot_network_bandwidth_evaluation():
     fig.legend(lines1 + lines2, labels1 + labels2, loc='lower center', bbox_to_anchor=(0.5, -0.05), ncol=4, frameon=True, fontsize=10)
     
     plt.tight_layout()
-    plt.subplots_adjust(bottom=0.18, wspace=0.3)  # add some space at the bottom for the legend and between subplots
+    plt.subplots_adjust(bottom=0.18, wspace=0.5)  # add some space at the bottom for the legend and between subplots
     
     plots_dir = Path(__file__).parent / "plots"
     plots_dir.mkdir(parents=True, exist_ok=True)

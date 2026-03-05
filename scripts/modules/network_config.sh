@@ -2,29 +2,54 @@
 
 # NETWORK EMULATION CONFIGURATION
 
-# Function to configure a single network with delay and jitter
 configure_single_network() {
     local network_name=$1
     local network_var=$2
-    
+    local rule=""
+
     echo ""
     echo "--- Configure $network_name ---"
-    read -p "Apply delay to $network_name? (y/n): " -n 1 -r
-    echo ""
-    
+
+    # DELAY + OPTIONAL DISTRIBUTION
+    read -p "Apply delay to $network_name? (y/n): " -n 1 -r; echo ""
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        read -p "Delay (ms) [default: 200]: " delay
-        delay=${delay:-200}
-        read -p "Jitter (ms) [default: 50]: " jitter
-        jitter=${jitter:-50}
-        
-        local rule="delay:${delay}ms:${jitter}ms"
-        sed -i "s/^$network_var=.*/$network_var=$rule/" network_emulator/network_rules.conf
-        echo "   ✓ $network_name configured: $rule"
-    else
-        sed -i "s/^$network_var=.*/$network_var=none/" network_emulator/network_rules.conf
-        echo "   X $network_name: no delay"
+        read -p "  Delay (ms) [default: 200]: " delay; delay=${delay:-200}
+        read -p "  Jitter (ms) [default: 50]: " jitter; jitter=${jitter:-50}
+
+        read -p "  Apply distribution? (y/n): " -n 1 -r; echo ""
+        local dist=""
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo "  Available distributions: uniform | normal | pareto | paretonormal"
+            read -p "  Distribution [default: normal]: " dist; dist=${dist:-normal}
+        fi
+
+        if [ -n "$dist" ]; then
+            rule="${rule}delay:${delay}ms:${jitter}ms:${dist},"
+        else
+            rule="${rule}delay:${delay}ms:${jitter}ms,"
+        fi
     fi
+
+    # LOSS
+    read -p "Apply packet loss to $network_name? (y/n): " -n 1 -r; echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        read -p "  Loss percentage [default: 1]: " loss; loss=${loss:-1}
+        rule="${rule}loss:${loss}%,"
+    fi
+
+    # DUPLICATION
+    read -p "Apply packet duplication to $network_name? (y/n): " -n 1 -r; echo ""
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        read -p "  Duplication percentage [default: 1]: " dup; dup=${dup:-1}
+        rule="${rule}dup:${dup}%,"
+    fi
+
+    # Remove trailing comma
+    rule=$(echo "$rule" | sed 's/,$//')
+    [ -z "$rule" ] && rule="none"
+
+    sed -i "s/^$network_var=.*/$network_var=$rule/" network_emulator/network_rules.conf
+    echo "  ✓ $network_name configured: $rule"
 }
 
 configure_network_rules() {
@@ -39,8 +64,10 @@ configure_network_rules() {
     echo "  4) CONSUMERS_G2  (172.20.40.254)"
     echo ""
     echo "Available rules"
-    echo "  - delay    (add network latency + jitter)"
-    echo "  - none     (no emulation)"
+    echo "  - delay         (latency + jitter, optional distribution)"
+    echo "  - loss          (packet loss %)"
+    echo "  - duplication   (packet duplication %)"
+    echo "  - none          (no emulation)"
     echo ""
     
     # Initialize config file with default values
