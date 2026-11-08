@@ -1,3 +1,7 @@
+<p align="right">
+  <b>English</b> | <a href="README.it.md">Italiano</a>
+</p>
+
 # Kafka Performance Analysis
 
 [![Docker](https://img.shields.io/badge/Docker-29.2.1-blue.svg)](https://www.docker.com/)
@@ -6,60 +10,60 @@
 [![Kafka](https://img.shields.io/badge/Kafka-3.8.0-orange.svg)](https://kafka.apache.org/)
 
 
-## 📖 Panoramica
+## 📖 Overview
 
-Questo progetto implementa un ambiente Kafka distribuito per l'analisi delle performance in condizioni di rete controllate. Prevede:
-- **3 broker Kafka** in modalità KRaft
-- **2 producer** che generano messaggi
-- **3 consumer** suddivisi in 2 gruppi
-- **Network Emulator** per simulare condizioni di rete controllate (delay/jitter con distribuzione variabile, packet loss, packet duplication)
+This project implements a distributed Kafka environment for performance analysis under controlled network conditions. It includes:
+- **3 Kafka brokers** in KRaft mode
+- **2 producers** that generate messages
+- **3 consumers** split into 2 groups
+- **Network Emulator** to simulate controlled network conditions (delay/jitter with variable distribution, packet loss, packet duplication)
 
-Ognuno di questi componenti è stato implementato come servizio Docker indipendente.
+Each of these components has been implemented as an independent Docker service.
 
-## 🏗️ Architettura
+## 🏗️ Architecture
 
 ![Architecture](./docs/software_architecture.png)
 
-### Componenti principali
+### Main components
 
-#### Kafka brokers (3 istanze)
+#### Kafka brokers (3 instances)
 
-- Modalità KRaft 
-- Porte: 9092, 9093, 9094 (host), 29092 (inter-broker)
-- Porte JMX: 9999, 10000, 10001 per metriche
-- Rete: `net_brokers` (172.20.10.0/24)
+- KRaft mode 
+- Ports: 9092, 9093, 9094 (host), 29092 (inter-broker)
+- JMX ports: 9999, 10000, 10001 for metrics
+- Network: `net_brokers` (172.20.10.0/24)
 - Replication Factor: 3 (hardcoded)
-- Min ISR: 2 (numero minimo di repliche “in-sync”)
+- Min ISR: 2 (minimum number of "in-sync" replicas)
 
-#### Producers (2 istanze)
+#### Producers (2 instances)
 
-- Generano messaggi in due modalità: Poisson / Continuous
-- Inoltrano verso Kafka con batching configurabile
-- Invio su un singolo topic per esperimento (non multi-topic)
-- Scrivono file `data/stats/*_stats.json` con:
-  - metriche utili alla sperimentazione
-  - overhead e throughput misurati dai broker via JMX
-- Salvano il recap dei messaggi generati e inoltrati in `data/producer_*_messages_recap.jsonl`
-- Rete: `net_producers` (172.20.20.0/24)
+- Generate messages in two modes: Poisson / Continuous
+- Forward them to Kafka with configurable batching
+- Send to a single topic per experiment (not multi-topic)
+- Write `data/stats/*_stats.json` files with:
+  - metrics useful for the experiments
+  - overhead and throughput measured by the brokers via JMX
+- Save the recap of the generated and forwarded messages in `data/producer_*_messages_recap.jsonl`
+- Network: `net_producers` (172.20.20.0/24)
 
-#### Consumers (3 istanze)
+#### Consumers (3 instances)
 
-- 2 consumer in `group_1`, 1 consumer in `group_2`
-- Tracciano timestamp di ricezione per la latency analysis
-- Salvano il recap dei messaggi processati in `data/consumer_*_messages_recap.jsonl`
-- Reti: `net_consumers_g1` (172.20.30.0/24), `net_consumers_g2` (172.20.40.0/24)
+- 2 consumers in `group_1`, 1 consumer in `group_2`
+- Track reception timestamps for the latency analysis
+- Save the recap of the processed messages in `data/consumer_*_messages_recap.jsonl`
+- Networks: `net_consumers_g1` (172.20.30.0/24), `net_consumers_g2` (172.20.40.0/24)
 
 #### Network Emulator
 
-- Router centrale collegato a tutte le subnet
-- Applica regole `tc/netem` per simulare delay con distribuzione variabile, packet duplication e packet loss
+- Central router connected to all subnets
+- Applies `tc/netem` rules to simulate delay with variable distribution, packet duplication and packet loss
 
 #### Kafka UI
 
-- Interfaccia web per monitorare il cluster su porta 8080
+- Web interface to monitor the cluster on port 8080
 
 
-## 📁 Struttura del Progetto
+## 📁 Project Structure
 
 ```
 .
@@ -133,133 +137,133 @@ Ognuno di questi componenti è stato implementato come servizio Docker indipende
 
 ## 🛠️ Utilities
 
-La cartella `utilities/` contiene moduli Python riutilizzati da tutti gli script di sperimentazione per il filtraggio degli outlier e la stima statistica multi-run.
+The `utilities/` folder contains Python modules reused by all the experiment scripts for outlier filtering and multi-run statistical estimation.
 
-### `tukey_iqr.py` — Filtro outlier IQR Tukey
-Rimuove gli outlier da un array di valori usando il metodo di Tukey basato
-sull'Interquartile Range (IQR). Il criterio di esclusione è:
+### `tukey_iqr.py` — Tukey IQR outlier filter
+Removes outliers from an array of values using Tukey's method based on
+the Interquartile Range (IQR). The exclusion criterion is:
 
 $$\text{lower} = Q_1 - 1.5 \cdot IQR \qquad \text{upper} = Q_3 + 1.5 \cdot IQR$$.
 
-Tutti i valori che cadono fuori dall'intervallo `[lower, upper]` vengono considerati outlier e scartati. Questo filtro viene applicato tra run diversi della stessa configurazione.
+All the values that fall outside the `[lower, upper]` range are considered outliers and discarded. This filter is applied across different runs of the same configuration.
 
-### `confidence_interval.py` — Intervallo di Confidenza al 95%
-Calcola la stima puntuale e l'intervallo di confidenza al 95% sui run filtrati dall'IQR, usando la t-distribution di Student:
+### `confidence_interval.py` — 95% Confidence Interval
+Computes the point estimate and the 95% confidence interval on the IQR-filtered runs, using Student's t-distribution:
 $$CI = \bar{x} \pm t^*_{n-1} \cdot \frac{s}{\sqrt{n}}$$
-dove:
-- $\bar{x}$ è la media campionaria
-- $s$ è la deviazione standard campionaria
-- $n$ è il numero di run validi dopo il filtro IQR
-- $t^*_{n-1}$ è il valore critico della t-distribution con $n-1$ gradi di libertà
+where:
+- $\bar{x}$ is the sample mean
+- $s$ is the sample standard deviation
+- $n$ is the number of valid runs after the IQR filter
+- $t^*_{n-1}$ is the critical value of the t-distribution with $n-1$ degrees of freedom
 
-Il valore rappresentativo usato nei plot è il punto centrale dell'intervallo:
+The representative value used in the plots is the midpoint of the interval:
 $$\mathrm{representative\_point} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$$
 
-Si usa la **t-distribution di Student** anziché il test z perché il numero di campioni disponibili è ridotto (5 run per la latency analysis, 10 per gli altri
-esperimenti). Con campioni piccoli, la t-distribution produce intervalli più conservativi e quindi stime più accurate dell'incertezza reale, compensando la sottostima della deviazione standard campionaria tipica di $n$ piccoli.
+**Student's t-distribution** is used instead of the z-test because the number of available samples is small (5 runs for the latency analysis, 10 for the other
+experiments). With small samples, the t-distribution produces more conservative intervals and therefore more accurate estimates of the real uncertainty, compensating for the underestimation of the sample standard deviation typical of small $n$.
 
 
 
 ## 🚀 Quick Start
 
-### Prerequisiti
+### Prerequisites
 
-Prima di iniziare, assicurati di avere installato:
+Before starting, make sure you have installed:
 
-- **Docker** e **Docker Compose**
+- **Docker** and **Docker Compose**
 - **Python** 
-- **Git** (per clonare il repository)
+- **Git** (to clone the repository)
 
-### Preparazione Ambiente Python
+### Python Environment Setup
 
 ```bash
-# Crea virtual environment
+# Create virtual environment
 python -m venv venv
 
-# Attiva ambiente virtuale
+# Activate virtual environment
 # Linux/Mac:
 source venv/bin/activate
 # Windows (Git Bash):
 source venv/Scripts/activate
 
-# Installa dipendenze
+# Install dependencies
 pip install -r requirements.txt
 
-# Crea directory di output
+# Create output directory
 mkdir -p data/stats
 ```
 
-## 🧪 Esperimenti
+## 🧪 Experiments
 
-### 1. Esperimento Singolo
+### 1. Single Experiment
 
 ```bash
 ./scripts/custom_setup_environment.sh
 ```
 
-Parametri richiesti:
-1. **Modalità esperimento:**
-  - Time-based (durata fissa in second) 
-  - Message-based (target numero messaggi)
+Required parameters:
+1. **Experiment mode:**
+  - Time-based (fixed duration in seconds) 
+  - Message-based (target number of messages)
 2. **Network Emulation:**
-  - Delay/jitter con distribuzione variabile (uniform | normal | pareto | paretonormal), packet loss e packet duplication per ogni subnet
+  - Delay/jitter with variable distribution (uniform | normal | pareto | paretonormal), packet loss and packet duplication for each subnet
 3. **Topic:**
-  - Numero di partizioni (3, 6, 9, 12)
-  - Payload Size: dimensione messaggi in bytes
-  - Batch Size: messaggi per batch
-  - Duration/Target: secondi o numero messaggi
-4. **Modalità generazione messaggi:**
+  - Number of partitions (3, 6, 9, 12)
+  - Payload Size: message size in bytes
+  - Batch Size: messages per batch
+  - Duration/Target: seconds or number of messages
+4. **Message generation mode:**
    - **Poisson** (`SEND_MODE=poisson`): Rate-limited Poisson arrivals
-      - `LOW`: λ=10 msg/s  → inter-arrival teorico ≈ 100ms
-      - `MEDIUM`: λ=50 msg/s  → inter-arrival teorico ≈ 20ms
-      - `HIGH`: λ=200 msg/s → inter-arrival teorico ≈ 5ms
+      - `LOW`: λ=10 msg/s  → theoretical inter-arrival ≈ 100ms
+      - `MEDIUM`: λ=50 msg/s  → theoretical inter-arrival ≈ 20ms
+      - `HIGH`: λ=200 msg/s → theoretical inter-arrival ≈ 5ms
    - **Continuous** (`SEND_MODE=continuous`): Heavy load, no rate limiting
 
 
-Questo script:
-- Configura le regole di emulazione di rete (delay, packet loss e duplication)
-- Imposta la durata dell'esperimento o il target dei messaggi da generare 
-- Regola payload size, numero di messaggi per batch, ecc.
-- Imposta la modalità con la quale verranno generati i messaggi dai producer
-- Effettua il build delle immagini Docker
-- Avvia tutti i servizi
+This script:
+- Configures the network emulation rules (delay, packet loss and duplication)
+- Sets the duration of the experiment or the target number of messages to generate 
+- Sets payload size, number of messages per batch, etc.
+- Sets the mode in which the producers generate the messages
+- Builds the Docker images
+- Starts all the services
 
-Durante l'esecuzione:
-- **Minuti 0-1:** Fase di inizializzazione dei servizi
-- **Minuti 1+:** Produzione e consumo di messaggi
-- **Fine:** Raccolta metriche JMX e generazione file stats
+During the execution:
+- **Minutes 0-1:** Service initialization phase
+- **Minutes 1+:** Message production and consumption
+- **End:** JMX metrics collection and generation of the stats files
 
-Al termine dell'esperimento saranno disponibili nella folder `data` il recap dei messaggi generati, e nella folder `data\stats` le statistiche varie, tra cui throughput, overhead e altre metriche utili. 
+At the end of the experiment, the recap of the generated messages will be available in the `data` folder, and various statistics, including throughput, overhead and other useful metrics, in the `data\stats` folder. 
 
 ---
 
 ### 2. Poisson Process Validation
-**Obiettivo:** verificare che la modalità `SEND_MODE=poisson` produca effettivamente un flusso di messaggi con tempi di inter-arrivo distribuiti secondo un processo di Poisson. 
+**Goal:** verify that the `SEND_MODE=poisson` mode actually produces a message stream with inter-arrival times distributed according to a Poisson process. 
 
-Questo modello rappresenta correttamente sistemi reali in cui i messaggi arrivano in modo **stocastico e indipendente**, al contrario della modalità `continuous` che genera un flusso artificialmente continuo a massimo throughput.
+This model correctly represents real systems in which messages arrive in a **stochastic and independent** way, unlike the `continuous` mode, which generates an artificially continuous stream at maximum throughput.
 
 ```bash
-# Genera dati (va scelta la modalità Poisson)
+# Generate data (the Poisson mode must be selected)
 ./scripts/custom_setup_environment.sh
 
-# Genera i plot di validazione
+# Generate the validation plots
 python ./experiments/poisson_validation/plot_poisson_validation.py
 ```
 
-**Filtraggio degli outlier:** 
-Prima di generare i plot, gli inter-arrival times vengono filtrati per rimuovere eventi anomali. Il criterio di filtraggio è basato sulla distribuzione esponenziale teorica:
-dato un livello di significatività `α = 0.01`, viene calcolata la soglia:
+**Outlier filtering:** 
+Before generating the plots, the inter-arrival times are filtered to remove anomalous events. The filtering criterion is based on the theoretical exponential distribution:
+given a significance level `α = 0.01`, the following threshold is computed:
 $$x_{thr} = \frac{-\ln(\alpha)}{\lambda}$$
-che rappresenta il valore oltre il quale la probabilità di osservare un inter-arrival time è inferiore all'1% secondo il modello esponenziale teorico. Tutti gli inter-arrival times superiori a $x_{thr}$ vengono scartati come outlier.
+which represents the value beyond which the probability of observing an inter-arrival time is lower than 1% according to the theoretical exponential model. All the inter-arrival times greater than $x_{thr}$ are discarded as outliers.
 
-**Plot generati:** 
-I tre subplot testano proprietà **distinte e complementari** del processo di Poisson.
-  1. `Inter-arrival Distribution`: mostra la distribuzione dei tempi tra messaggi consecutivi sovrapposta alla Funzione di Densità di Probabilità teorica esponenziale $$f(t) = \lambda \cdot e^{-\lambda t}$$. Se il processo è correttamente Poisson, le barre dell'istogramma devono allinearsi alla curva teorica. Questo conferma che i messaggi vengono generati con inter-arrival times esponenzialmente distribuiti. Gli inter-arrival times sono calcolati come differenze consecutive del campo `send_timestamp_ms` dei file `producer_*_messages_recap.jsonl`.
+**Generated plots:** 
+The three subplots test **distinct and complementary** properties of the Poisson process.
+  1. `Inter-arrival Distribution`: shows the distribution of the times between consecutive messages, overlaid on the theoretical exponential Probability Density Function $$f(t) = \lambda \cdot e^{-\lambda t}$$. If the process is correctly Poisson, the histogram bars must line up with the theoretical curve. This confirms that the messages are generated with exponentially distributed inter-arrival times. The inter-arrival times are computed as consecutive differences of the `send_timestamp_ms` field of the `producer_*_messages_recap.jsonl` files.
 
-  2. `Exponential Q-Q Plot`: il Q-Q plot confronta i quantili empirici degli inter-arrival times con i quantili teorici della distribuzione esponenziale. Se i punti si allineano sulla diagonale y = x (ideal), i dati seguono effettivamente una distribuzione esponenziale. 
-  3. `Message Count per Window`: mostra la distribuzione empirica del numero di messaggi ricevuti in determinate finestre temporali, sovrapposta alla PMF (Probability Mass Function) teorica di Poisson $$P(k) = \frac{\lambda^k \cdot e^{-\lambda}}{k!}$$
-  La finestra è scelta in modo che la **media teorica di messaggi per finestra sia sempre pari a 10** (`μ = λ · window = λ · 10/λ = 10`), indipendentemente dal valore di λ. Questo rende i plot confrontabili tra le diverse configurazioni di carico (Low, Medium, High), evitando che la distribuzione si sposti su scale diverse e renda difficile la visualizzazione e la comprensione del plot.
-  Questa scelta è statisticamente valida poichè per la proprietà di scala del processo di Poisson, il numero di arrivi in un intervallo $T$ segue $\text{Poisson}(\mu = \lambda T)$. Fissare $T = 10/\lambda$ impone $\mu = 10$ per qualsiasi $\lambda$, preservando la forma della distribuzione e la correttezza del confronto con la PMF teorica.
+  2. `Exponential Q-Q Plot`: the Q-Q plot compares the empirical quantiles of the inter-arrival times with the theoretical quantiles of the exponential distribution. If the points line up on the diagonal y = x (ideal), the data actually follow an exponential distribution. 
+  3. `Message Count per Window`: shows the empirical distribution of the number of messages received in given time windows, overlaid on the theoretical Poisson PMF (Probability Mass Function) $$P(k) = \frac{\lambda^k \cdot e^{-\lambda}}{k!}$$
+  The window is chosen so that the **theoretical mean number of messages per window is always 10** (`μ = λ · window = λ · 10/λ = 10`), regardless of the value of λ. This makes the plots comparable across the different load configurations (Low, Medium, High), preventing the distribution from shifting to different scales, which would make the plot hard to visualize and understand.
+  This choice is statistically valid because, by the scaling property of the Poisson process, the number of arrivals in an interval $T$ follows $\text{Poisson}(\mu = \lambda T)$. Fixing $T = 10/\lambda$ imposes $\mu = 10$ for any $\lambda$, preserving the shape of the distribution and the correctness of the comparison with the theoretical PMF.
 
 
 - **`λ = 10 Low performance`**: 
@@ -277,71 +281,71 @@ I tre subplot testano proprietà **distinte e complementari** del processo di Po
 --- 
 
 ### 3. Latency Analysis
-**Obiettivo:** analizzare la latenza end-to-end (producer → broker → consumer).
+**Goal:** analyze the end-to-end latency (producer → broker → consumer).
 ```bash
-# 1. Esegue 5 run x 216 esperimenti (4 partizioni x 9 batch sizes x 6 lambda rates) 
+# 1. Runs 5 runs x 216 experiments (4 partitions x 9 batch sizes x 6 lambda rates) 
 ./experiments/latency_analysis/latency_analysis_launch.sh
 
-# 2. Genera plots
+# 2. Generate plots
 python ./experiments/latency_analysis/plot_latency_analysis.py
 ```
 
-> **Nota:** `generate_report_latency.py` viene eseguito automaticamente al termine
-> di ogni run dallo script `latency_analysis_launch.sh`. Genera il file
-> `experiments/latency_analysis/reports/latency_report.json` con le statistiche
-> aggregate per run, che viene poi letto da `plot_latency_analysis.py` per
-> produrre i plot finali.
+> **Note:** `generate_report_latency.py` is run automatically at the end
+> of each run by the `latency_analysis_launch.sh` script. It generates the
+> `experiments/latency_analysis/reports/latency_report.json` file with the
+> aggregated statistics per run, which is then read by `plot_latency_analysis.py` to
+> produce the final plots.
 
 
-**Configurazione:**
+**Configuration:**
   - Partition counts: 3, 6, 9, 12
   - Batch sizes: 1, 5, 10, 15, 20, 25, 30, 40, 50
   - Lambda rates: 50, 100, 200, 500, 800, 1000
   - Payload size: 200 bytes
-  - Numero di run per configurazione: 5
-  - Durata: 60s produzione + 30s warmup
-  - Modalità di generazione messaggi: Poisson
+  - Number of runs per configuration: 5
+  - Duration: 60s production + 30s warmup
+  - Message generation mode: Poisson
 
-**Durata media dell'intero esperimento:** ~52 ore
+**Average duration of the whole experiment:** ~52 hours
 
-**Metriche calcolate:**
+**Computed metrics:**
 **Latency** = `receive_timestamp_ms - producer_send_timestamp_ms`
 
-La latenza end-to-end può essere decomposta come:
+The end-to-end latency can be decomposed as:
 $$L_{e2e} = T_{buffer} + T_{broker} + T_{consumer}$$
 
-dove:
-- $T_{buffer}$: tempo di attesa nel buffer del producer fino al riempimento del batch
-- $T_{broker}$: tempo di scrittura, replica tra broker e commit sul topic
-- $T_{consumer}$: tempo di polling e processing lato consumer
+where:
+- $T_{buffer}$: waiting time in the producer buffer until the batch is full
+- $T_{broker}$: time for writing, replication across brokers and commit on the topic
+- $T_{consumer}$: polling and processing time on the consumer side
 
-**Aggregazione multi-run:**
-Per ogni configurazione (λ, Nb, partizioni), i 5 run vengono aggregati con:
-  - Filtro outlier: IQR Tukey sulla latency media di ogni run
-  - Stima: per ogni metrica viene calcolato l'intervallo di confidenza al 95% (t-distribution) sui run filtrati; il valore rappresentativo è il punto centrale dell'intervallo $\mathrm{representative\_point} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$
+**Multi-run aggregation:**
+For each configuration (λ, Nb, partitions), the 5 runs are aggregated with:
+  - Outlier filter: Tukey IQR on the mean latency of each run
+  - Estimate: for each metric, the 95% confidence interval (t-distribution) is computed on the filtered runs; the representative value is the midpoint of the interval $\mathrm{representative\_point} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$
 
-**Plot generati:** 
-  1. `latency_vs_nb.png`: Latency (s) vs Nb, curve per λ, con regressione adattiva e R²
-  2. `latency_vs_lambda.png`: Latency (s) vs λ (scala log), curve per Nb, con fit **power-hyperbolic**
-  3. `latency_heatmap_of_latency_vs_nb.png`: Heatmap λ × Nb con sfumatura di colore per latency media
-  4. `latency_boxplot_of_latency_vs_nb.png`: Boxplot latency vs Nb, griglia partizioni × λ
-  5. `latency_partition_ratio_table.png`: Tabella del rapporto della latency al variare del numero di partizioni, per ogni configurazione (λ, Nb)
+**Generated plots:** 
+  1. `latency_vs_nb.png`: Latency (s) vs Nb, curves per λ, with adaptive regression and R²
+  2. `latency_vs_lambda.png`: Latency (s) vs λ (log scale), curves per Nb, with **power-hyperbolic** fit
+  3. `latency_heatmap_of_latency_vs_nb.png`: λ × Nb heatmap with color shading for the mean latency
+  4. `latency_boxplot_of_latency_vs_nb.png`: Latency vs Nb boxplot, partitions × λ grid
+  5. `latency_partition_ratio_table.png`: Table of the latency ratio as the number of partitions varies, for each configuration (λ, Nb)
 
-  > **R²** (coefficiente di determinazione) misura la proporzione di varianza dei
-  > dati spiegata dal modello di regressione. Varia tra 0 e 1: un valore vicino
-  > a 1 indica che il modello si adatta bene ai dati; un valore basso indica che
-  > la relazione assunta non cattura adeguatamente il comportamento osservato.
+  > **R²** (coefficient of determination) measures the proportion of the variance of the
+  > data explained by the regression model. It ranges from 0 to 1: a value close
+  > to 1 indicates that the model fits the data well; a low value indicates that
+  > the assumed relationship does not adequately capture the observed behaviour.
 
 
   - **`Boxplot of Latency vs Nb`**: 
 
   ![Latency Analysis 1](./experiments/latency_analysis/plots/latency_boxplot_of_latency_vs_nb.png)
 
-  I boxplot `latency_boxplot_of_latency_vs_nb.png` evidenziano diversi comportamenti strutturali:
-  - **Ampiezza del box cresce con Nb:** all'aumentare del batch size la distribuzione di latenza si allarga, segnalando che il batching non solo aumenta la latenza media ma ne incrementa anche la **variabilità**.
-  - **Asimmetria positiva:** il whisker superiore è sistematicamente più lungo di quello inferiore; alcuni messaggi sperimentano latenze molto superiori alla mediana, in particolare per Nb elevati.
-  - **Box più stretti ad alto λ:** con rate elevati i box sono più compatti, confermando che λ alto riduce sia la latenza media sia la sua dispersione: i batch si riempiono rapidamente e in modo più uniforme.
-  - **Comportamento a λ basso e molte partizioni:** nell’ultima riga (λ=10), per Nb elevati i box tendono a diventare simili tra loro a prescindere da Nb e dal numero di partizioni. In questo regime $\frac{\lambda}{P}$ è così basso che il tempo teorico di riempimento del batch supera `linger_ms = 30000 ms`. I batch vengono quindi inviati per timeout, spesso parzialmente pieni, e la latenza osservata è dominata dal valore di `linger_ms`. L’aumento del batch size non produce più variazioni significative nella distribuzione di latenza.
+  The `latency_boxplot_of_latency_vs_nb.png` boxplots highlight several structural behaviours:
+  - **Box width grows with Nb:** as the batch size increases, the latency distribution widens, showing that batching not only increases the mean latency but also its **variability**.
+  - **Positive skewness:** the upper whisker is systematically longer than the lower one; some messages experience latencies much higher than the median, especially for high Nb.
+  - **Narrower boxes at high λ:** with high rates the boxes are more compact, confirming that a high λ reduces both the mean latency and its dispersion: batches fill up quickly and more uniformly.
+  - **Behaviour at low λ and many partitions:** in the last row (λ=10), for high Nb the boxes tend to become similar to each other regardless of Nb and of the number of partitions. In this regime $\frac{\lambda}{P}$ is so low that the theoretical batch fill time exceeds `linger_ms = 30000 ms`. Batches are therefore sent on timeout, often only partially full, and the observed latency is dominated by the value of `linger_ms`. Increasing the batch size no longer produces significant changes in the latency distribution.
 
   - **`Heatmap of Latency vs Nb`**: 
 
@@ -351,59 +355,59 @@ Per ogni configurazione (λ, Nb, partizioni), i 5 run vengono aggregati con:
 
     ![Latency Analysis 3](./experiments/latency_analysis/plots/latency_ratio_vs_partition_number.png)
 
-    Il plot mostra il **rapporto della latenza** rispetto a P=3 per ogni (λ, Nb). In regime normale i valori si avvicinano sistematicamente a **×2** (P=6), **×3** (P=9), **×4** (P=12) perché:
-    Con P partizioni il producer mantiene **P buffer interni paralleli** (uno per partizione). A parità di λ, il flusso di messaggi si distribuisce uniformemente tra i buffer: ogni buffer riceve solo **λ/P msg/s**.
-    Il tempo di riempimento di un batch da Nb messaggi diventa:
-    $T_{buffer} = \frac{Nb}{\lambda/P} = \frac{Nb \cdot P}{\lambda}$. La latenza **scala con P**. 
+    The plot shows the **latency ratio** with respect to P=3 for each (λ, Nb). In the normal regime the values systematically approach **×2** (P=6), **×3** (P=9), **×4** (P=12) because:
+    With P partitions the producer keeps **P parallel internal buffers** (one per partition). For the same λ, the message stream is distributed evenly across the buffers: each buffer receives only **λ/P msg/s**.
+    The time needed to fill a batch of Nb messages becomes:
+    $T_{buffer} = \frac{Nb}{\lambda/P} = \frac{Nb \cdot P}{\lambda}$. The latency **scales with P**. 
     
-    Per λ=10 e **Nb≥30**, i ratio collassano verso ×1.7-1.8 invece di ×4. Qui λ è così basso che i batch **non si riempiono mai entro `linger_ms = 30000 ms`**. L'invio avviene per timeout con batch parzialmente pieni, rendendo la latenza indipendente da P (dominata dal timeout fisso).
+    For λ=10 and **Nb≥30**, the ratios collapse towards ×1.7-1.8 instead of ×4. Here λ is so low that the batches **never fill up within `linger_ms = 30000 ms`**. Sending happens on timeout with partially full batches, making the latency independent of P (dominated by the fixed timeout).
 
   - **`Latency vs λ`**: 
 
     ![Latency Analysis 4](./experiments/latency_analysis/plots/latency_vs_lambda.png)
 
-    Latency (s) vs λ (scala log), curve per Nb, con fit **power-hyperbolic**:
+    Latency (s) vs λ (log scale), curves per Nb, with **power-hyperbolic** fit:
     $$L(\lambda) = \frac{a}{\lambda^b} + c$$
      
-    Questo modello generalizza l’iperbole classica $\frac{a}{\lambda} + c$ aggiungendo l’esponente $b$: per Nb piccoli i dati sono compatibili con $b \approx 1$, mentre per Nb grandi le curve diventano più piatte $(b < 1)$ perché, oltre una certa soglia di λ, la latenza è dominata da $T_{broker}$ e $T_{consumer}$ e smette di decrescere in modo puramente iperbolico.
-    Nel plot con **P=12** questo effetto è particolarmente visibile: le curve per Nb elevati non sono più perfettamente aderenti al modello power-hyperbolic e mostrano un leggero disallineamento tra punti e prediction. Questo non è un errore di fitting ma la manifestazione grafica del passaggio al regime timeout-dominated indotto da `linger_ms`.
+    This model generalizes the classic hyperbola $\frac{a}{\lambda} + c$ by adding the exponent $b$: for small Nb the data are compatible with $b \approx 1$, while for large Nb the curves become flatter $(b < 1)$ because, beyond a certain λ threshold, the latency is dominated by $T_{broker}$ and $T_{consumer}$ and stops decreasing in a purely hyperbolic way.
+    In the plot with **P=12** this effect is particularly visible: the curves for high Nb no longer fit the power-hyperbolic model perfectly and show a slight misalignment between points and prediction. This is not a fitting error but the graphical manifestation of the transition to the timeout-dominated regime induced by `linger_ms`.
 
   - **`Latency vs Nb`**: 
 
     ![Latency Analysis 5](./experiments/latency_analysis/plots/latency_vs_nb.png)
 
-    Latency (s) vs Nb, curve per λ, con regressione adattiva e R²:
-     - **Regressione lineare** $L = a \cdot N_b + c$ quando R² ≥ 0.95, che descrive il regime in cui la latenza cresce quasi linearmente con il batch size perché il termine dominante è il tempo di riempimento del buffer $T_{buffer}$.
-     - **Regressione quadratica** $L = a \cdot N_b^2 + b \cdot N_b + c$ (label: `quadratic fit`) quando R² < 0.95, tipicamente per λ molto bassi e molti topic partitions. In questo caso il sistema entra in un regime di saturazione / accodamento e l’aumento di latenza con Nb diventa super-lineare.
+    Latency (s) vs Nb, curves per λ, with adaptive regression and R²:
+     - **Linear regression** $L = a \cdot N_b + c$ when R² ≥ 0.95, which describes the regime in which the latency grows almost linearly with the batch size because the dominant term is the buffer fill time $T_{buffer}$.
+     - **Quadratic regression** $L = a \cdot N_b^2 + b \cdot N_b + c$ (label: `quadratic fit`) when R² < 0.95, typically for very low λ and many topic partitions. In this case the system enters a saturation / queuing regime and the latency increase with Nb becomes super-linear.
 
-#### Confronto tra heavy load e Poisson
+#### Comparison between heavy load and Poisson
 
-Nel caso **heavy load**, il producer genera messaggi a massimo throughput; il flusso in ingresso è sufficientemente alto da riempire i batch ben prima della scadenza di `linger_ms = 30000 ms`. In questo regime il sistema è **abbastanza performante** da non incontrare il limite imposto da `linger_ms`, e i batch vengono inviati praticamente sempre a capacità massima.
+In the **heavy load** case, the producer generates messages at maximum throughput; the incoming stream is high enough to fill the batches well before `linger_ms = 30000 ms` expires. In this regime the system is **efficient enough** not to hit the limit imposed by `linger_ms`, and the batches are practically always sent at full capacity.
 
-La modalità **Poisson** permette invece di esplorare anche scenari di carico parziale: quando $\lambda$ è abbastanza grande da riempire un batch entro `linger_ms`, la latenza segue i modelli teorici basati su $T_{buffer}$ (fit lineare in funzione di Nb, power-hyperbolic in funzione di λ). Quando invece $\frac{\lambda}{P}$ è così basso da non riuscire a riempire il batch in tempo, si osserva un cambio di regime: i batch vengono inviati anticipatamente per scadenza del timer e la latenza si avvicina a `linger_ms`, diventando poco sensibile alle variazioni di Nb e di P.
+The **Poisson** mode, instead, also makes it possible to explore partial load scenarios: when $\lambda$ is large enough to fill a batch within `linger_ms`, the latency follows the theoretical models based on $T_{buffer}$ (linear fit as a function of Nb, power-hyperbolic as a function of λ). When instead $\frac{\lambda}{P}$ is so low that the batch cannot be filled in time, a regime change is observed: batches are sent early because the timer expires and the latency approaches `linger_ms`, becoming insensitive to variations of Nb and P.
 
 ---
 
 ### 4. Network Bandwidth Evaluation
-**Obiettivo:** valutare throughput e overhead al variare di batch size e numero partizioni.
+**Goal:** evaluate throughput and overhead as batch size and number of partitions vary.
 ```bash
-# Esegue 10 run x 120 esperimenti (4 partizioni × 30 batch sizes)
+# Runs 10 runs x 120 experiments (4 partitions × 30 batch sizes)
 ./experiments/network_bandwidth_evaluation/network_bandwidth_evaluation_launch.sh
 
-# Genera plot
+# Generate plot
 python ./experiments/network_bandwidth_evaluation/plot_network_bandwidth_evaluation.py
 ```
-**Configurazione:**
+**Configuration:**
   - Partition counts: 3, 6, 9, 12
   - Batch sizes: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 15, 16, 18, 20, 21, 23, 24, 26, 29, 30, 32, 35, 37, 40, 41, 45, 49, 50
   - Payload size: 1000 bytes
-  - Numero di run per configurazione: 10
+  - Number of runs per configuration: 10
   - Target messages: 50K
-  - Modalità di generazione messaggi: Heavy mode
+  - Message generation mode: Heavy mode
 
-**Durata media dell'intero esperimento:** ~40 ore
+**Average duration of the whole experiment:** ~40 hours
 
-**Metriche calcolate:**
+**Computed metrics:**
   1. Kafka Total Bytes (JMX):
   **kafka_total_bytes** = $BytesInPerSec$
   2. Kafka Overhead:
@@ -413,23 +417,23 @@ python ./experiments/network_bandwidth_evaluation/plot_network_bandwidth_evaluat
   4. Throughput:
   **throughput_kbps** = $\frac{kafkaTotalBytes / 1024}{transmissionTimeSeconds}$
 
-**Aggregazione multi-run:**
-Per ogni configurazione (partizioni, batch size), i run vengono aggregati con:
-  - Filtro outlier: IQR Tukey su throughput per escludere run anomali
-  - Stima: intervallo di confidenza al 95% (t-distribution) sui run filtrati; il valore rappresentativo è $\mathrm{representativePoint} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$
+**Multi-run aggregation:**
+For each configuration (partitions, batch size), the runs are aggregated with:
+  - Outlier filter: Tukey IQR on throughput to exclude anomalous runs
+  - Estimate: 95% confidence interval (t-distribution) on the filtered runs; the representative value is $\mathrm{representativePoint} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$
 
-**Modelli di fitting:**
+**Fitting models:**
   - Throughput (exponential saturation):
   $$T(x) = c - a \cdot e^{-bx}$$
   - Overhead (power-law decay):
   $$O(x) = a \cdot x^{-b} + c$$
 
 **Plot:**
-Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
-  - Asse Y sinistro (blu): Throughput (MB/s) con prediction curve
-  - Asse Y destro (rosso): Overhead (%) con prediction curve
-  - Marker blu (+): Risultati sperimentali throughput
-  - Marker rosso (○): Risultati sperimentali overhead
+The plot shows 4 subplots (one per partition configuration) with:
+  - Left Y axis (blue): Throughput (MB/s) with prediction curve
+  - Right Y axis (red): Overhead (%) with prediction curve
+  - Blue markers (+): Experimental throughput results
+  - Red markers (○): Experimental overhead results
 
 - **`Network bandwidth evaluation`**: 
 
@@ -438,26 +442,26 @@ Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
 ---
 
 ### 5. Correlation Analysis
-**Obiettivo:** analizzare la correlazione tra dimensione pacchetto (Sr) e intervallo di invio (Gs).
+**Goal:** analyze the correlation between packet size (Sr) and send interval (Gs).
 ```bash
-# Esegue 10 run x 56 esperimenti (4 partizioni × 14 batch sizes)
+# Runs 10 runs x 56 experiments (4 partitions × 14 batch sizes)
 ./experiments/correlation_analysis/correlation_analysis_launch.sh
 
-# Genera plot
+# Generate plot
 python ./experiments/correlation_analysis/plot_correlation_analysis.py
 ```
 
-**Configurazione:**
+**Configuration:**
   - Partition counts: 3, 6, 9, 12
   - Batch sizes: 10 30 50 70 100 120 150 170 190 210 230 250 280 300
   - Payload size: 1000 bytes
-  - Numero di run per configurazione: 10
-  - Durata: 60s produzione + 30s warmup
-  - Modalità di generazione messaggi: Heavy mode
+  - Number of runs per configuration: 10
+  - Duration: 60s production + 30s warmup
+  - Message generation mode: Heavy mode
 
-**Durata media dell'intero esperimento:** ~23 ore
+**Average duration of the whole experiment:** ~23 hours
 
-**Formule:**
+**Formulas:**
 
 1. **Serialized Message Size (Sm):**
    
@@ -467,8 +471,8 @@ python ./experiments/correlation_analysis/plot_correlation_analysis.py
    
    **Sb** = $\frac{S_m \cdot N_b + batchHeaderSize}{compressionRatio}$
 
-   **Dove:**
-   - `Nb` = numero messaggi per batch  
+   **Where:**
+   - `Nb` = number of messages per batch  
    - `batch_header_size` = 61 bytes (Kafka protocol)  
    - `compression_ratio` = 1.0 (no compression)
 
@@ -476,50 +480,50 @@ python ./experiments/correlation_analysis/plot_correlation_analysis.py
    
    **Gs** = $timestampCurrentGroup - timestampPreviousGroup$
 
-   Un *gruppo* consiste di $P$ batch consecutivi (dove $P$ = partizioni per broker).
+   A *group* consists of $P$ consecutive batches (where $P$ = partitions per broker).
 
 4. **Request Size (Sr):**
    
    **Sr** = $S_b \cdot P + packetHeaderSize$
 
-   **Dove:**
-   - `P` = numero di partizioni gestite da un broker  
-   - `packet_header_size` = overhead TCP/IP + Kafka protocol
+   **Where:**
+   - `P` = number of partitions handled by a broker  
+   - `packet_header_size` = TCP/IP + Kafka protocol overhead
 
 5. **Packet Header Size:**
    
    **packet_header_size** = $\frac{kafkaTotalBytes - \sum (S_b \cdot numBatches)}{totalBatches}$
 
-   Dove `kafka_total_bytes` è raccolto via JMX (`BytesInPerSec`).
+   Where `kafka_total_bytes` is collected via JMX (`BytesInPerSec`).
 
 
-**Aggregazione multi-run:**
-Per ogni configurazione (partizioni, batch size), i run vengono aggregati con:
-  - Filtro outlier: IQR Tukey su Gs come anchor per escludere run anomali
-  - Stima: intervallo di confidenza al 95% (t-distribution) sui run filtrati; il valore rappresentativo è $\mathrm{representativePoint} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$
+**Multi-run aggregation:**
+For each configuration (partitions, batch size), the runs are aggregated with:
+  - Outlier filter: Tukey IQR on Gs as anchor to exclude anomalous runs
+  - Estimate: 95% confidence interval (t-distribution) on the filtered runs; the representative value is $\mathrm{representativePoint} = \frac{CI_{\mathrm{lower}} + CI_{\mathrm{upper}}}{2}$
 
 **Plot:**
-Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
-  - Asse Y: Packet Send Interval (ms)
-  - Asse X: Packet Size (KB)  
-  - Fit lineare: 
+The plot shows 4 subplots (one per partition configuration) with:
+  - Y axis: Packet Send Interval (ms)
+  - X axis: Packet Size (KB)  
+  - Linear fit: 
     **Gs** = $a \cdot S_r + b$
-  - R² score per valutare la correlazione
+  - R² score to evaluate the correlation
 
 - **`Correlation Analysis`**: 
 
   ![Correlation Analysis](./experiments/correlation_analysis/plots/correlation_analysis.png)
 
-> **R²** (coefficiente di determinazione) misura la proporzione di varianza dei
-> dati spiegata dal modello di regressione. Varia tra 0 e 1: un valore vicino
-> a 1 indica che il modello si adatta bene ai dati; un valore basso indica che
-> la relazione assunta non cattura adeguatamente il comportamento osservato.
+> **R²** (coefficient of determination) measures the proportion of the variance of the
+> data explained by the regression model. It ranges from 0 to 1: a value close
+> to 1 indicates that the model fits the data well; a low value indicates that
+> the assumed relationship does not adequately capture the observed behaviour.
 
-## 📊 Metriche e Output
+## 📊 Metrics and Output
 
-### File di Output
+### Output Files
 
-- **`data/producer_*_messages.jsonl`**: Record di invio messaggi
+- **`data/producer_*_messages.jsonl`**: Message send records
   ```json
   {
     "key": "8", 
@@ -535,20 +539,20 @@ Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
   }
   ```
 
-  | Campo                | Descrizione                                                   |
+  | Field                | Description                                                   |
   |----------------------|---------------------------------------------------------------|
-  | `key`                | Chiave univoca del messaggio                                  |
-  | `run_id`             | Identificatore univoco esperimento						     |
-  | `topic`              | Topic Kafka su cui sono stati inviati i messaggi              |
-  | `partition`          | Partizione Kafka di destinazione                              |
-  | `broker_id`          | ID del broker leader della partizione                         |
-  | `message`            | Payload effettivo del messaggio             					 |
-  | `message_size_bytes` | Dimensione totale (key + value serializzati)                  |
-  | `send_timestamp_ms`  | Timestamp di creazione del messaggio nel producer             |
-  | `status`             | Stato della delivery del messaggio             				 |
-  | `send_batch_id`      | ID del batch di appartenenza                                  |
+  | `key`                | Unique key of the message                                     |
+  | `run_id`             | Unique experiment identifier						     |
+  | `topic`              | Kafka topic the messages were sent to                         |
+  | `partition`          | Destination Kafka partition                                   |
+  | `broker_id`          | ID of the leader broker of the partition                      |
+  | `message`            | Actual payload of the message             					 |
+  | `message_size_bytes` | Total size (serialized key + value)                           |
+  | `send_timestamp_ms`  | Creation timestamp of the message in the producer             |
+  | `status`             | Delivery status of the message             				 |
+  | `send_batch_id`      | ID of the batch the message belongs to                        |
 
-- **`data/consumer_*_messages.jsonl`**: Record di ricezione messaggi
+- **`data/consumer_*_messages.jsonl`**: Message reception records
   ```json
   {
     "key": "1", 
@@ -562,18 +566,18 @@ Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
   }
   ```
 
-  | Campo                      | Descrizione                                        					|
+  | Field                      | Description                                        					|
   | -------------------------- | ---------------------------------------------------------------------- |
-  | `key`                        | Chiave univoca del messaggio Kafka                 					|
-  | `run_id`                     | Identificatore univoco esperimento                 					|
-  | `topic`                      | Topic Kafka su cui sono stati inviati i messaggi    					|
-  | `partition`                  | ID della partizione Kafka da cui il consumer ha letto il messaggio     |
-  | `offset`                     | Offset del messaggio nella partizione              					|
-  | `message`                    | Payload effettivo del messaggio             							|
-  | `receive_timestamp_ms`       | Timestamp ricezione nel consumer                  					    |
-  | `producer_send_timestamp_ms` | Timestamp invio dal producer (per calcolo latenza) 					|
+  | `key`                        | Unique key of the Kafka message                    					|
+  | `run_id`                     | Unique experiment identifier                       					|
+  | `topic`                      | Kafka topic the messages were sent to               					|
+  | `partition`                  | ID of the Kafka partition the consumer read the message from           |
+  | `offset`                     | Offset of the message in the partition             					|
+  | `message`                    | Actual payload of the message               							|
+  | `receive_timestamp_ms`       | Reception timestamp in the consumer               					    |
+  | `producer_send_timestamp_ms` | Send timestamp from the producer (for latency computation) 					|
 
-- **`data/stats/producer_*_stats.json`**: Statistiche del producer
+- **`data/stats/producer_*_stats.json`**: Producer statistics
   ```json
   {
     "run_id": "test_3_partitions_NB_10_PS_200",
@@ -634,37 +638,37 @@ Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
     }
   }
   ```
-  | Sezione                 | Campo                     | Descrizione                                                									|
+  | Section                 | Field                     | Description                                                									|
   | ----------------------- | ------------------------- | ----------------------------------------------------------------------------------------------|
-  | `Root`                    | `run_id`                    | Identificatore univoco esperimento                                                            |
-  |                         | `producer_name`             | Nome container producer che ha generato i dati                                                |
-  |                         | `topic`                     | Topic Kafka su cui sono stati inviati i messaggi                                              |
-  | `transmission_stats`      | `num_messages`              | Numero totale messaggi inviati dal producer                                                   |
-  |                         | `num_batches`               | Numero totale di batch inviati                                                                |
-  |                         | `payload_bytes`             | Dimensione totale dei SOLI payload (contenuto utile dei messaggi, senza header Kafka/TCP/IP)  |
-  |                         | `transmission_time_seconds` | Tempo effettivo di trasmissione (dal primo al ultimo messaggio)                               |
-  | `kafka_metrics`           | `kafka_total_bytes`         | Byte totali ricevuti dai broker (payload + overhead Kafka + header TCP/IP)                    |
-  |                         | `kafka_overhead_bytes`      | Overhead totale (header Kafka + TCP/IP + metadati)                                            |
-  |                         | `throughput_kbps`           | Throughput effettivo misurato dai broker                                                      |
-  |                         | `overhead_percentage`       | Percentuale overhead sul totale                            									|
-  |                         | `packet_header_size_bytes`  | Dimensione media header di rete per pacchetto (TCP/IP + Kafka protocol overhead)              |
-  | `experiment_config`       | `partition_count`           | Numero partizioni del topic                                									|
-  |                         | `nb_messages_per_batch`     | Numero di messaggi per batch (configurato nel producer)                        				|
-  |                         | `batch_header_size_bytes`   | Dimensione fissa dell'header del batch Kafka                           						|
-  |                         | `compression_ratio`         | Rapporto compressione (1.0 = no compression)               									|
-  |                         | `partition_to_broker`       | Mapping partizione → broker leader                         									|
-  |                         | `lambda_rate`       | Valore lambda per generazione secondo processo di Poisson (0.0 in heavy mode)                         									|
-  |                         | `linger_ms`       | Durata di attesa massima prima dell'invio di un batch                         									|
-  | `broker_tracking_summary` | `batch_count`               | Numero batch ricevuti dal broker                           									|
-  |                         | `partition_count`           | Numero partizioni gestite dal broker                       									|
-  | `batch_metrics`           | `Nb`                        | Numero messaggi per batch                                  									|
-  |                         | `P`                         | Numero partizioni leader per broker                               							|
-  |                         | `Sm_mean_bytes`             | Dimensione media messaggio serializzato (key + value JSON)  									|
-  |                         | `Sb_mean_bytes`             | Dimensione media batch serializzato      														|
-  |                         | `Gs_mean_ms`                | Intervallo medio tra invii di gruppi completi di batch (ogni P batch)     					|
-  |                         | `Sr_mean_bytes`             | Dimensione media pacchetto di rete (batch + header TCP/IP)        							|
+  | `Root`                    | `run_id`                    | Unique experiment identifier                                                                  |
+  |                         | `producer_name`             | Name of the producer container that generated the data                                        |
+  |                         | `topic`                     | Kafka topic the messages were sent to                                                         |
+  | `transmission_stats`      | `num_messages`              | Total number of messages sent by the producer                                                 |
+  |                         | `num_batches`               | Total number of batches sent                                                                  |
+  |                         | `payload_bytes`             | Total size of the payloads ONLY (useful content of the messages, without Kafka/TCP/IP headers) |
+  |                         | `transmission_time_seconds` | Actual transmission time (from the first to the last message)                                 |
+  | `kafka_metrics`           | `kafka_total_bytes`         | Total bytes received by the brokers (payload + Kafka overhead + TCP/IP headers)               |
+  |                         | `kafka_overhead_bytes`      | Total overhead (Kafka + TCP/IP headers + metadata)                                            |
+  |                         | `throughput_kbps`           | Actual throughput measured by the brokers                                                     |
+  |                         | `overhead_percentage`       | Overhead percentage over the total                         									|
+  |                         | `packet_header_size_bytes`  | Average network header size per packet (TCP/IP + Kafka protocol overhead)                     |
+  | `experiment_config`       | `partition_count`           | Number of partitions of the topic                          									|
+  |                         | `nb_messages_per_batch`     | Number of messages per batch (configured in the producer)                      				|
+  |                         | `batch_header_size_bytes`   | Fixed size of the Kafka batch header                                   						|
+  |                         | `compression_ratio`         | Compression ratio (1.0 = no compression)                   									|
+  |                         | `partition_to_broker`       | Partition → leader broker mapping                          									|
+  |                         | `lambda_rate`       | Lambda value for generation according to the Poisson process (0.0 in heavy mode)                         									|
+  |                         | `linger_ms`       | Maximum waiting time before a batch is sent                                   									|
+  | `broker_tracking_summary` | `batch_count`               | Number of batches received by the broker                   									|
+  |                         | `partition_count`           | Number of partitions handled by the broker                 									|
+  | `batch_metrics`           | `Nb`                        | Number of messages per batch                               									|
+  |                         | `P`                         | Number of leader partitions per broker                            							|
+  |                         | `Sm_mean_bytes`             | Average serialized message size (key + JSON value)          									|
+  |                         | `Sb_mean_bytes`             | Average serialized batch size            														|
+  |                         | `Gs_mean_ms`                | Average interval between sends of complete groups of batches (every P batches)               |
+  |                         | `Sr_mean_bytes`             | Average network packet size (batch + TCP/IP headers)              							|
 
-- **`experiments/latency_analysis/reports/latency_report.json`**: Generato durante l'esperimento Latency Analysis
+- **`experiments/latency_analysis/reports/latency_report.json`**: Generated during the Latency Analysis experiment
 ```json
 {
   "run_id": "nb10_part3_r1",
@@ -734,55 +738,55 @@ Il plot mostra 4 subplot (uno per configurazione di partizioni) con:
 }
 ```
 
-| Sezione       | Campo               | Descrizione                                                                 |
+| Section       | Field               | Description                                                                 |
 |---------------|---------------------|-----------------------------------------------------------------------------|
-| `Root`        | `run_id`            | Identificatore univoco del run                                              |
-|               | `mode`              | Modalità di generazione messaggi (`poisson` / `continuous`)                 |
-|               | `lambda`            | Lambda rate se `mode=poisson`, `null` se `mode=continuous`                  |
-|               | `nb`                | Batch size usato nel run                                                    |
-|               | `partitions`        | Numero di partizioni del topic                                              |
-|               | `run_number`        | Indice progressivo del run nella configurazione                             |
-|               | `throughput_mbps`   | Throughput medio misurato durante il run (KB/s)                             |
-| `global`      | `latency_min_ms`    | Latenza minima osservata su tutti i messaggi del run                        |
-|               | `latency_max_ms`    | Latenza massima osservata su tutti i messaggi del run                       |
-|               | `latency_mean_ms`   | Latenza media globale del run         |
-|               | `latency_std_ms`    | Deviazione standard della latenza                                           |
-|               | `latency_p25_ms`    | 25° percentile della distribuzione di latenza                               |
-|               | `latency_p50_ms`    | Mediana della distribuzione di latenza                                      |
-|               | `latency_p75_ms`    | 75° percentile della distribuzione di latenza                               |
-|               | `latency_p95_ms`    | 95° percentile della distribuzione di latenza                               |
-|               | `latency_p99_ms`    | 99° percentile della distribuzione di latenza                               |
-|               | `latency_iqr_ms`    | Interquartile Range della latenza (`p75 - p25`)                             |
-|               | `message_count`     | Numero totale di messaggi ricevuti da tutti i consumer nel run              |
-| `by_consumer` | `consumer`          | Nome del consumer (`consumer_1_g1`, `consumer_2_g1`, `consumer_1_g2`)      |
-|               | `latency_*`         | Stesse metriche della sezione `global`, calcolate sul singolo consumer      |
-|               | `message_count`     | Numero di messaggi ricevuti dal singolo consumer                            |
+| `Root`        | `run_id`            | Unique identifier of the run                                                |
+|               | `mode`              | Message generation mode (`poisson` / `continuous`)                          |
+|               | `lambda`            | Lambda rate if `mode=poisson`, `null` if `mode=continuous`                  |
+|               | `nb`                | Batch size used in the run                                                  |
+|               | `partitions`        | Number of partitions of the topic                                           |
+|               | `run_number`        | Progressive index of the run within the configuration                      |
+|               | `throughput_mbps`   | Average throughput measured during the run (KB/s)                           |
+| `global`      | `latency_min_ms`    | Minimum latency observed over all the messages of the run                   |
+|               | `latency_max_ms`    | Maximum latency observed over all the messages of the run                   |
+|               | `latency_mean_ms`   | Global mean latency of the run         |
+|               | `latency_std_ms`    | Standard deviation of the latency                                           |
+|               | `latency_p25_ms`    | 25th percentile of the latency distribution                                 |
+|               | `latency_p50_ms`    | Median of the latency distribution                                          |
+|               | `latency_p75_ms`    | 75th percentile of the latency distribution                                 |
+|               | `latency_p95_ms`    | 95th percentile of the latency distribution                                 |
+|               | `latency_p99_ms`    | 99th percentile of the latency distribution                                 |
+|               | `latency_iqr_ms`    | Interquartile Range of the latency (`p75 - p25`)                            |
+|               | `message_count`     | Total number of messages received by all the consumers in the run          |
+| `by_consumer` | `consumer`          | Consumer name (`consumer_1_g1`, `consumer_2_g1`, `consumer_1_g2`)          |
+|               | `latency_*`         | Same metrics as the `global` section, computed on the single consumer       |
+|               | `message_count`     | Number of messages received by the single consumer                          |
 
 
 ## 🐳 Docker Compose
 
-Il file `docker-compose.yml` orchestra:
+The `docker-compose.yml` file orchestrates:
 
-- **3 Broker Kafka** con KRaft 
-- **Kafka UI** (port 8080) per visualizzazione cluster
-- **2 Producer** su rete dedicata
-- **3 Consumer** su 2 reti distinte (per test emulazione separata)
-- **Network Emulator** su tutte le reti
+- **3 Kafka Brokers** with KRaft 
+- **Kafka UI** (port 8080) for cluster visualization
+- **2 Producers** on a dedicated network
+- **3 Consumers** on 2 distinct networks (to test separate emulation)
+- **Network Emulator** on all networks
 
-## ⚙️ Variabili d'Ambiente
+## ⚙️ Environment Variables
 
-| Variabile | Descrizione 
+| Variable | Description 
 |-----------|-------------
-| `EXPERIMENT_DURATION` | Durata esperimento (secondi) 
-| `TARGET_MESSAGES` | Numero di messaggi da generare 
-| `TOPIC_NAME` | Topic Kafka 
-| `RUN_ID` | ID della run per tracciamento 
-| `PAYLOAD_SIZE_BYTES` | Dimensione payload messaggi 
-| `NB_MESSAGES_PER_BATCH` | Messaggi per batch
-| `PARTITION_COUNT` | Numero di partizioni 
-| `SEND_MODE` | Modalità generazione messaggi dai producers
-| `LAMBDA_RATE` | Lambda rate se SEND_MODE = POISSON
-| `BOOTSTRAP_SERVERS` | Server Kafka bootstrap 
+| `EXPERIMENT_DURATION` | Experiment duration (seconds) 
+| `TARGET_MESSAGES` | Number of messages to generate 
+| `TOPIC_NAME` | Kafka topic 
+| `RUN_ID` | Run ID for tracking 
+| `PAYLOAD_SIZE_BYTES` | Message payload size 
+| `NB_MESSAGES_PER_BATCH` | Messages per batch
+| `PARTITION_COUNT` | Number of partitions 
+| `SEND_MODE` | Message generation mode of the producers
+| `LAMBDA_RATE` | Lambda rate if SEND_MODE = POISSON
+| `BOOTSTRAP_SERVERS` | Kafka bootstrap servers 
 
 ## 🧹 Cleanup
 
@@ -790,127 +794,127 @@ Il file `docker-compose.yml` orchestra:
 bash scripts/teardown_environment.sh
 ```
 
-Ferma i container e pulisce i file (con prompt interattivo).
+Stops the containers and cleans up the files (with an interactive prompt).
 
-## 📌 Note Importanti
-1. **Replication Factor:** Hardcoded a 3 in tutti i topic
-2. **Single Topic:** I producer scrivono su un solo topic per esperimento (no multi-topic simultaneo)
-3. **JMX Requirement:** `update_stats_with_jmx.py` richiede broker attivi per raccogliere metriche
-4. **Batch e `linger_ms`:** In tutti gli esperimenti il producer usa `linger_ms = 30000 ms`, un valore abbastanza alto da garantire che, in condizioni di **heavy load**, i batch vengano quasi sempre inviati a capacità massima (Nb messaggi) e non per scadenza del timer. In questo regime il sistema è **throughput-bound**: il flusso di messaggi è sufficiente a riempire rapidamente tutti i buffer e `linger_ms` non diventa mai il collo di bottiglia. Nella **latency analysis in modalità Poisson**, invece, esploriamo anche configurazioni con λ molto bassi e numero di partizioni elevato. In questi casi il rate effettivo per partizione può essere così basso che il tempo teorico di riempimento del batch supera `linger_ms`. Quando succede, l’invio avviene **per timeout** e non per riempimento del batch: i batch vengono quindi inviati parzialmente e la latenza osservata riflette principalmente il valore di `linger_ms`. Questo rappresenta un regime distinto (input-bound / timeout-bound) che viene discusso nella sezione della latency analysis.
+## 📌 Important Notes
+1. **Replication Factor:** Hardcoded to 3 in all topics
+2. **Single Topic:** The producers write to a single topic per experiment (no simultaneous multi-topic)
+3. **JMX Requirement:** `update_stats_with_jmx.py` requires running brokers to collect metrics
+4. **Batch and `linger_ms`:** In all the experiments the producer uses `linger_ms = 30000 ms`, a value high enough to guarantee that, under **heavy load**, batches are almost always sent at full capacity (Nb messages) and not because the timer expires. In this regime the system is **throughput-bound**: the message stream is enough to fill all the buffers quickly and `linger_ms` never becomes the bottleneck. In the **latency analysis in Poisson mode**, instead, we also explore configurations with very low λ and a high number of partitions. In these cases the effective rate per partition can be so low that the theoretical batch fill time exceeds `linger_ms`. When this happens, sending happens **on timeout** and not because the batch is full: the batches are therefore sent partially full and the observed latency mainly reflects the value of `linger_ms`. This is a distinct regime (input-bound / timeout-bound) that is discussed in the latency analysis section.
 
 
 
-## 🔚 Conclusioni
-Gli esperimenti condotti sui tre scenari (latency analysis, correlation analysis e network bandwidth evaluation) permettono di evidenziare alcuni comportamenti strutturali del sistema Kafka in presenza di batching e partizionamento.
-
----
-
-### Latency Analysis: effetto di batch size e lambda rate sulla latenza end-to-end
-
-La **latency analysis** misura il tempo end-to-end tra l'invio del messaggio dal producer e la ricezione dal consumer, al variare del batch size **(Nb)** e del lambda rate **(λ)**, in modalità **Poisson**.
-
-#### Effetto del batch size (Nb)
-
-All'aumentare di Nb si osserva un **incremento quasi lineare della latenza media**. Questo comportamento è legato al fatto che con batch più grandi, il producer trattiene i messaggi in buffer per un tempo più lungo prima di inviarli, aumentando il tempo
-di attesa complessivo. La regressione lineare stimata nei plot conferma questo andamento con coefficienti R² elevati.
-L'effetto è particolarmente marcato per **λ bassi**: con rate ridotti, i messaggi arrivano lentamente e il buffer impiega più tempo a riempirsi, quindi anche piccoli incrementi di Nb si traducono in aumenti significativi di latenza (rette con pendenza
-ripida).  Questo è vero fin quando lambda è in grado di riempire i batch entro linger.ms, dopodiché si entra in saturazione e la latency si stabilizza. Al crescere di λ, i batch si riempiono più rapidamente e la pendenza si riduce progressivamente: la latenza cresce ancora linearmente con Nb, ma in modo molto più contenuto.
-
-#### Effetto del lambda rate (λ)
-
-All'aumentare di λ, la latenza **decresce** secondo un andamento **power-hyperbolic** (fit su scala log). Con rate elevati, i batch si riempiono più velocemente, riducendo il tempo di attesa nel buffer del producer. Oltre una certa soglia, la latenza tende a stabilizzarsi e il sistema raggiunge un regime in cui il tempo dominante è quello di trasmissione e processing del broker, non più il tempo di accumulo del batch.
-
-Per λ molto bassi e molti topic partitions (es. λ=10 con P=9 o 12) si osserva un comportamento diverso: il rate effettivo per partizione $\frac{\lambda}{P}$ può diventare talmente piccolo che il tempo necessario a riempire un batch supera `linger_ms = 30000 ms`. In questo regime, l’invio dei batch avviene spesso per timeout piuttosto che per riempimento; la latenza è quindi limitata superiormente dal valore di `linger_ms` e smette di seguire una legge iperbolica “pulita”. Questi casi limite sono mantenuti nei risultati proprio per mostrare il confine tra il regime batch-dominated e il regime timeout-dominated.
-
-#### Effetto del numero di partizioni
-
-Le heatmap e i boxplot mostrano che **raddoppiare il numero di partizioni tende a raddoppiare la latenza media**. Questo comportamento è legato al fatto che con più partizioni, il producer mantiene **più buffer interni paralleli** (uno per partizione). A parità di λ, il flusso di messaggi si distribuisce su un numero maggiore di buffer, quindi ciascuno impiega più tempo a raggiungere la soglia di riempimento necessaria per l'invio. Il messaggio attende quindi più a lungo nel buffer prima che il batch venga trasmesso.
-
-Il plot **`latency_ratio_vs_partition_number`** mostra come, in gran parte delle configurazioni, raddoppiare il numero di partizioni avvicini la latenza a un fattore ≈2×, confermando la natura proporzionale dell'impatto del partizionamento sulla latenza. Fa eccezione il caso di **λ basso e Nb elevato**, in cui l’invio è dominato da `linger_ms` e non dall’accumulo nei buffer per partizione, per cui aggiungere partizioni non moltiplica più il tempo di attesa ma lascia la latenza  sostanzialmente invariata.
-
-In regime di **Poisson**, i risultati suggeriscono alcune pratiche per ottimizzare la latenza:
-- Preferire batch size (Nb) ridotti se l'obiettivo è avere latency ridotta
-- Evitare un numero eccessivo di partizioni poichè porta ad una crescita della latency
-- Configurare un **λ sufficientemente alto**: rate elevati riducono sia la latenza media sia la sua variabilità, portando il sistema in un regime più stabile e prevedibile
-
+## 🔚 Conclusions
+The experiments carried out on the three scenarios (latency analysis, correlation analysis and network bandwidth evaluation) highlight some structural behaviours of the Kafka system in the presence of batching and partitioning.
 
 ---
 
-### Correlation Analysis: relazione tra dimensione pacchetto e tempi di invio
+### Latency Analysis: effect of batch size and lambda rate on end-to-end latency
 
-Nel grafico **correlation analysis** si osserva che, a parità di configurazione, l'intervallo medio di invio dei gruppi di batch **(Gs)** cresce all'aumentare della dimensione media del pacchetto serializzato **(Sr)**. Questo comportamento è atteso: pacchetti più grandi richiedono più tempo per essere inviati sulla rete e processati dallo stack TCP/IP e dal broker, quindi l'intervallo tra due "gruppi" di invio tende ad allungarsi.
+The **latency analysis** measures the end-to-end time between the producer sending the message and the consumer receiving it, as the batch size **(Nb)** and the lambda rate **(λ)** vary, in **Poisson** mode.
 
-Tuttavia, l'aumento del tempo non è proporzionale (non raddoppia esattamente raddoppiando la dimensione del pacchetto), ma segue bene una **regressione quasi lineare** del tipo:
+#### Effect of the batch size (Nb)
+
+As Nb increases, an **almost linear increase in the mean latency** is observed. This behaviour is due to the fact that with larger batches the producer holds the messages in the buffer for longer before sending them, increasing the overall waiting
+time. The linear regression estimated in the plots confirms this trend with high R² coefficients.
+The effect is particularly marked for **low λ**: with low rates, messages arrive slowly and the buffer takes longer to fill, so even small increases in Nb translate into significant latency increases (lines with a steep
+slope). This holds as long as lambda is able to fill the batches within linger.ms; after that, saturation is reached and the latency stabilizes. As λ grows, the batches fill up faster and the slope progressively decreases: the latency still grows linearly with Nb, but much more moderately.
+
+#### Effect of the lambda rate (λ)
+
+As λ increases, the latency **decreases** following a **power-hyperbolic** trend (fit on a log scale). With high rates, batches fill up faster, reducing the waiting time in the producer buffer. Beyond a certain threshold, the latency tends to stabilize and the system reaches a regime in which the dominant time is the broker's transmission and processing time, no longer the batch accumulation time.
+
+For very low λ and many topic partitions (e.g. λ=10 with P=9 or 12) a different behaviour is observed: the effective rate per partition $\frac{\lambda}{P}$ can become so small that the time needed to fill a batch exceeds `linger_ms = 30000 ms`. In this regime, batches are often sent on timeout rather than because they are full; the latency is therefore bounded above by the value of `linger_ms` and stops following a "clean" hyperbolic law. These edge cases are kept in the results precisely to show the boundary between the batch-dominated regime and the timeout-dominated regime.
+
+#### Effect of the number of partitions
+
+The heatmaps and boxplots show that **doubling the number of partitions tends to double the mean latency**. This behaviour is due to the fact that with more partitions the producer keeps **more parallel internal buffers** (one per partition). For the same λ, the message stream is spread over a larger number of buffers, so each one takes longer to reach the fill threshold required for sending. The message therefore waits longer in the buffer before the batch is transmitted.
+
+The **`latency_ratio_vs_partition_number`** plot shows how, in most configurations, doubling the number of partitions brings the latency close to a factor of ≈2×, confirming the proportional nature of the impact of partitioning on latency. The exception is the case of **low λ and high Nb**, where sending is dominated by `linger_ms` and not by the accumulation in the per-partition buffers, so adding partitions no longer multiplies the waiting time but leaves the latency  substantially unchanged.
+
+In the **Poisson** regime, the results suggest some practices to optimize latency:
+- Prefer small batch sizes (Nb) if the goal is low latency
+- Avoid an excessive number of partitions, since it leads to higher latency
+- Configure a **sufficiently high λ**: high rates reduce both the mean latency and its variability, bringing the system to a more stable and predictable regime
+
+
+---
+
+### Correlation Analysis: relationship between packet size and send times
+
+In the **correlation analysis** plot it can be observed that, for the same configuration, the average send interval of the batch groups **(Gs)** grows as the average serialized packet size **(Sr)** increases. This behaviour is expected: larger packets take more time to be sent over the network and processed by the TCP/IP stack and by the broker, so the interval between two send "groups" tends to get longer.
+
+However, the increase in time is not proportional (it does not exactly double when the packet size doubles), but it fits an **almost linear regression** of the form:
 
 $$Gs \approx a \cdot Sr + b$$
 
-dove:
-- Il termine costante **(b)** rappresenta il **costo fisso per richiesta** (overhead di protocollo, scheduling, ecc.)
-- Il coefficiente **(a)** è legato principalmente alla **banda disponibile** e alla **latenza della rete**
+where:
+- The constant term **(b)** represents the **fixed cost per request** (protocol overhead, scheduling, etc.)
+- The coefficient **(a)** is mainly related to the **available bandwidth** and to the **network latency**
 
-In altre parole, esiste un costo minimo "per richiesta" che si paga indipendentemente dalla dimensione del batch, e un costo variabile che cresce con i byte effettivamente trasmessi.
+In other words, there is a minimum "per request" cost that is paid regardless of the batch size, and a variable cost that grows with the bytes actually transmitted.
 
-#### Effetto del numero di partizioni su Gs
+#### Effect of the number of partitions on Gs
 
-Confrontando le diverse configurazioni di partizioni, si nota che **l'intervallo di invio Gs aumenta con il numero di partizioni**. Questo comportamento è coerente con l'architettura interna del producer Kafka:
+Comparing the different partition configurations, it can be seen that **the send interval Gs increases with the number of partitions**. This behaviour is consistent with the internal architecture of the Kafka producer:
 
-- **Più partizioni** → **più code interne** nel producer (una per partizione)
-- Maggiore **concorrenza** tra thread di invio
-- Aumento dell'**overhead di coordinamento** (lock, sincronizzazione, ...)
-- Più richieste HTTP/TCP da gestire simultaneamente verso i broker
+- **More partitions** → **more internal queues** in the producer (one per partition)
+- Higher **concurrency** between send threads
+- Increased **coordination overhead** (locks, synchronization, ...)
+- More HTTP/TCP requests to handle simultaneously towards the brokers
 
-Il producer deve coordinare l'invio verso un numero maggiore di partizioni distribuite sui broker, con conseguente incremento del tempo necessario per completare un ciclo di invio completo. 
-Il risultato netto è che il tempo medio di invio per singolo gruppo cresce con il numero di partizioni, pur beneficiando della parallelizzazione lato broker. Le rette di regressione lineare stimate mostrano infatti **pendenze e intercette diverse** per ciascuna configurazione di partizioni, confermando questo effetto sistemico.
+The producer has to coordinate the sending towards a larger number of partitions spread over the brokers, which increases the time needed to complete a full send cycle. 
+The net result is that the average send time per group grows with the number of partitions, despite benefiting from the parallelization on the broker side. The estimated linear regression lines in fact show **different slopes and intercepts** for each partition configuration, confirming this systemic effect.
 
 ---
 
-### Network Bandwidth Evaluation: throughput e overhead al variare del batch size
+### Network Bandwidth Evaluation: throughput and overhead as the batch size varies
 
-Nel grafico **network bandwidth evaluation**, fissato un numero di partizioni, il **throughput** cresce all'aumentare del batch size, ma non in modo **lineare**: i primi incrementi di batch size portano un guadagno molto marcato, mentre oltre una certa soglia l'incremento di throughput tende a saturare.
+In the **network bandwidth evaluation** plot, for a fixed number of partitions, the **throughput** grows as the batch size increases, but not **linearly**: the first increases in batch size bring a very marked gain, while beyond a certain threshold the throughput increase tends to saturate.
 
-Il throughput cresce secondo un modello di **exponential saturation**:
+The throughput grows according to an **exponential saturation** model:
 
 $$T(x) = c - a \cdot e^{-bx}$$
 
-dove:
-- **x** è il batch size **(Nb)**
-- **c** rappresenta il **throughput massimo teorico**
-- **a** e **b** caratterizzano la velocità di saturazione
+where:
+- **x** is the batch size **(Nb)**
+- **c** represents the **theoretical maximum throughput**
+- **a** and **b** characterize the speed of saturation
 
-**Fase iniziale (batch piccoli):**  
-Il termine esponenziale $e^{-bx}$ è grande → throughput basso.
+**Initial phase (small batches):**  
+The exponential term $e^{-bx}$ is large → low throughput.
 
-**Fase di saturazione (batch grandi):**  
-Il termine esponenziale tende a 0 → throughput si avvicina a **c**.
+**Saturation phase (large batches):**  
+The exponential term tends to 0 → the throughput approaches **c**.
 
-#### Andamento dell'overhead relativo
+#### Trend of the relative overhead
 
-Per quanto riguarda l'**overhead percentuale**, la curva mostra un **power-law decay**:
+As for the **percentage overhead**, the curve shows a **power-law decay**:
 
 $$O(x) = a \cdot x^{-b} + c$$
 
-La **stabilizzazione** dell'overhead a valori bassi riflette il fatto che, aumentando ulteriormente il batch size, la struttura del protocollo Kafka non cambia.
+The **stabilization** of the overhead at low values reflects the fact that, by further increasing the batch size, the structure of the Kafka protocol does not change.
 
-### Effetto del numero di partizioni
+### Effect of the number of partitions
 
-Variando il numero di partizioni si osservano **shifting e differenze di forma** nelle curve di throughput e overhead.
+Varying the number of partitions, **shifts and differences in shape** are observed in the throughput and overhead curves.
 
-**Più partizioni → Vantaggi:**
-- Maggiore parallelismo
-- Throughput massimo teorico più elevato
-- Migliore distribuzione del carico
+**More partitions → Advantages:**
+- Greater parallelism
+- Higher theoretical maximum throughput
+- Better load distribution
 
-**Più partizioni → Svantaggi:**
-- Più metadata da gestire
-- Più traffico di replica
-- Più code interne nel producer
-- Overhead di coordinamento crescente
+**More partitions → Disadvantages:**
+- More metadata to manage
+- More replication traffic
+- More internal queues in the producer
+- Growing coordination overhead
 
-Esiste quindi una **regione ottimale** che bilancia parallelismo e overhead.
-**Trade-off pratico**: P=3-6 ottimale per la maggior parte dei casi; P=12 solo se λ alto e Nb piccoli.
+There is therefore an **optimal region** that balances parallelism and overhead.
+**Practical trade-off**: P=3-6 is optimal for most cases; P=12 only with high λ and small Nb.
 
 
-## 📚 Riferimenti
+## 📚 References
 
 ### 1. Performance Prediction Model
 
